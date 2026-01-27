@@ -15,9 +15,9 @@ const updateSchema = z.object({
 });
 
 type RouteParams = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
@@ -28,7 +28,8 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const id = Number(params.id);
+  const { id: idParam } = await params;
+  const id = Number(idParam);
   if (Number.isNaN(id)) {
     return new NextResponse("Invalid id", { status: 400 });
   }
@@ -66,7 +67,8 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const id = Number(params.id);
+  const { id: idParam } = await params;
+  const id = Number(idParam);
   if (Number.isNaN(id)) {
     return new NextResponse("Invalid id", { status: 400 });
   }
