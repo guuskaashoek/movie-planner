@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { films } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { films, attendees, users } from "@/lib/db/schema";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const filmSchema = z.object({
   title: z.string().min(1),
   description: z.string().nullable(),
   date: z.string().min(1),
+  releaseDate: z.string().nullable(),
   startTime: z.string().nullable(),
   endTime: z.string().nullable(),
   posterUrl: z.string().url().nullable(),
@@ -22,13 +23,56 @@ export async function GET() {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const userFilms = await db
-    .select()
+  // Get all films with attendee information
+  const allFilms = await db
+    .select({
+      id: films.id,
+      title: films.title,
+      description: films.description,
+      date: films.date,
+      releaseDate: films.releaseDate,
+      startTime: films.startTime,
+      endTime: films.endTime,
+      posterUrl: films.posterUrl,
+      createdBy: films.createdBy,
+      createdAt: films.createdAt,
+      attendeeCount: sql<number>`count(distinct ${attendees.userId})`,
+      isAttending: sql<number>`sum(case when ${attendees.userId} = ${userId} then 1 else 0 end)`,
+    })
     .from(films)
-    .where(eq(films.userId, userId))
+    .leftJoin(attendees, eq(films.id, attendees.filmId))
+    .groupBy(films.id)
     .orderBy(films.date, films.startTime);
 
-  return NextResponse.json({ films: userFilms });
+  // Get creator info and attendee details for each film
+  const filmsWithDetails = await Promise.all(
+    allFilms.map(async (film) => {
+      const [creator] = await db
+        .select({ name: users.name, email: users.email, image: users.image })
+        .from(users)
+        .where(eq(users.id, film.createdBy));
+
+      const filmAttendees = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          image: users.image,
+        })
+        .from(attendees)
+        .innerJoin(users, eq(attendees.userId, users.id))
+        .where(eq(attendees.filmId, film.id));
+
+      return {
+        ...film,
+        isAttending: film.isAttending > 0,
+        creator,
+        attendees: filmAttendees,
+      };
+    })
+  );
+
+  return NextResponse.json({ films: filmsWithDetails });
 }
 
 export async function POST(req: NextRequest) {
@@ -45,13 +89,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(parsed.error.format(), { status: 400 });
   }
 
+  // Create film
   const [inserted] = await db
     .insert(films)
     .values({
       ...parsed.data,
-      userId,
+      createdBy: userId,
     })
     .returning();
+
+  // Add creator as first attendee
+  await db.insert(attendees).values({
+    filmId: inserted.id,
+    userId,
+  });
 
   return NextResponse.json({ film: inserted }, { status: 201 });
 }

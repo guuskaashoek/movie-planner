@@ -1,7 +1,4 @@
 import { auth, signOut } from "@/lib/auth";
-import { db } from "@/lib/db/client";
-import { films } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
 import { MyFilmsClient } from "./MyFilmsClient";
 
 export default async function MyFilmsPage() {
@@ -14,11 +11,17 @@ export default async function MyFilmsPage() {
     return null;
   }
 
-  const userFilms = await db
-    .select()
-    .from(films)
-    .where(eq(films.userId, userId))
-    .orderBy(films.date, films.startTime);
+  // Fetch all films from API (server-side)
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/films`, {
+    headers: {
+      cookie: `authjs.session-token=${session?.user?.id}`,
+    },
+    cache: "no-store",
+  });
+
+  const data = await res.json();
+  const allFilms = data.films || [];
 
   return (
     <div className="space-y-6">
@@ -37,13 +40,13 @@ export default async function MyFilmsPage() {
         >
           <button
             type="submit"
-            className="rounded-md border border-zinc-700 px-3 py-1 text-xs text-zinc-300"
+            className="rounded-md border border-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900"
           >
             Sign out
           </button>
         </form>
       </div>
-      <MyFilmsClient initial={{ films: userFilms }} />
+      <MyFilmsClient initial={{ films: allFilms, currentUserId: userId }} />
     </div>
   );
 }

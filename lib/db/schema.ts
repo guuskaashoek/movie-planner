@@ -14,21 +14,29 @@ export const users = sqliteTable("users", {
 
 export const films = sqliteTable("films", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id")
+  createdBy: integer("created_by")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
-  date: text("date").notNull(), // ISO date (YYYY-MM-DD)
+  date: text("date").notNull(), // ISO date (YYYY-MM-DD) - screening date
+  releaseDate: text("release_date"), // ISO date (YYYY-MM-DD) - official release date
   startTime: text("start_time"), // HH:mm
   endTime: text("end_time"), // HH:mm
   posterUrl: text("poster_url"),
-  isOnMainBoard: integer("is_on_main_board", { mode: "boolean" })
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
-    .default(false),
-  addedToMainBoardAt: integer("added_to_main_board_at", {
-    mode: "timestamp_ms",
-  }),
+    .default(sql`(strftime('%s','now') * 1000)`),
+});
+
+export const attendees = sqliteTable("attendees", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  filmId: integer("film_id")
+    .notNull()
+    .references(() => films.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(strftime('%s','now') * 1000)`),
@@ -36,6 +44,10 @@ export const films = sqliteTable("films", {
 
 export const boardSettings = sqliteTable("board_settings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" })
+    .unique(),
   name: text("name").notNull(),
   icsShareId: text("ics_share_id").notNull().unique(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
