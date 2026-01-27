@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { films } from "@/lib/db/schema";
 import { BoardClient } from "./BoardClient";
+import { CalendarSubscription } from "./CalendarSubscription";
 import { eq } from "drizzle-orm";
 
 const PAGE_SIZE = 20;
@@ -32,29 +33,20 @@ export default async function BoardPage() {
   const icsUrl = `${baseUrl.replace(/\/$/, "")}/api/calendar/feed.ics`;
 
   return (
-    <div className="space-y-8">
-      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-950 p-6">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="mx-auto max-w-4xl space-y-6">
+      {/* Calendar Subscription Section */}
+      <section className="rounded-lg border border-zinc-800 bg-zinc-950 p-6">
+        <div className="space-y-4">
           <div>
-            <h1 className="text-lg font-semibold text-zinc-50">
-              Shared film board
+            <h1 className="text-xl font-semibold text-zinc-50">
+              Calendar Board
             </h1>
-            <p className="text-xs text-zinc-400">
-              Chronological timeline of all films sent to the main board.
+            <p className="mt-1 text-sm text-zinc-400">
+              All films shared to the board, synced to your calendar
             </p>
           </div>
-          <div className="space-y-1">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
-              Calendar subscription (.ics)
-            </p>
-            <div className="flex items-center gap-2">
-              <input
-                readOnly
-                value={icsUrl}
-                className="w-full rounded-md border border-zinc-800 bg-black px-2 py-1 text-[11px] text-zinc-300"
-              />
-            </div>
-          </div>
+
+          <CalendarSubscription icsUrl={icsUrl} />
         </div>
       </section>
 

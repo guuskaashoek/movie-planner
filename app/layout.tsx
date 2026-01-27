@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,9 +31,23 @@ export default function RootLayout({
         <div className="min-h-screen bg-black text-zinc-100">
           <header className="border-b border-zinc-800">
             <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-              <span className="text-sm font-semibold tracking-tight text-zinc-100">
-                Film Calendar
-              </span>
+              <Link href="/" className="text-sm font-semibold tracking-tight text-zinc-100 hover:text-white">
+                🎬 Film Calendar
+              </Link>
+              <nav className="flex items-center gap-6">
+                <Link
+                  href="/my-films"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-100"
+                >
+                  My Films
+                </Link>
+                <Link
+                  href="/board"
+                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-100"
+                >
+                  Calendar Board
+                </Link>
+              </nav>
             </div>
           </header>
           <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
