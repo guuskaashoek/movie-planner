@@ -22,7 +22,13 @@ export default async function BoardPage() {
 
   if (!userId) {
     console.error("User ID not found in session");
-    redirect("/");
+    // return redirect("/api/auth/signin"); // Avoid loop
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="mb-4 text-zinc-400">Session error: User ID missing.</p>
+        <a href="/api/auth/signout" className="rounded bg-white px-4 py-2 text-black text-sm">Sign Out</a>
+      </div>
+    )
   }
 
   // All films are on the board now

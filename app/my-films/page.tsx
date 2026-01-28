@@ -21,7 +21,24 @@ export default async function MyFilmsPage() {
   const userId: number = session.user.id;
 
   if (!userId) {
-    redirect("/");
+    return (
+      <div className="flex h-[50vh] flex-col items-center justify-center gap-4">
+        <p className="text-zinc-400">Session error: User ID missing. Please sign out.</p>
+        <form
+          action={async () => {
+            "use server";
+            await signOut();
+          }}
+        >
+          <button
+            type="submit"
+            className="rounded-md bg-white px-4 py-2 text-sm font-medium text-black"
+          >
+            Sign out
+          </button>
+        </form>
+      </div>
+    );
   }
 
   // Fetch all films directly from database
