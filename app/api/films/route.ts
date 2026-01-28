@@ -4,15 +4,17 @@ import { db } from "@/lib/db/client";
 import { films, attendees, users } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { signPosterUrl } from "@/lib/s3";
 
 const filmSchema = z.object({
   title: z.string().min(1),
-  description: z.string().nullable(),
-  date: z.string().min(1),
-  releaseDate: z.string().nullable(),
-  startTime: z.string().nullable(),
-  endTime: z.string().nullable(),
-  posterUrl: z.string().url().nullable(),
+  description: z.string().nullable().optional(),
+  date: z.string().nullable().optional(),
+  releaseDate: z.string().nullable().optional(),
+  startTime: z.string().nullable().optional(),
+  endTime: z.string().nullable().optional(),
+  posterUrl: z.string().nullable().optional(),
+  formats: z.string().nullable().optional(),
 });
 
 export async function GET() {
@@ -63,8 +65,11 @@ export async function GET() {
         .innerJoin(users, eq(attendees.userId, users.id))
         .where(eq(attendees.filmId, film.id));
 
+      const signedPosterUrl = await signPosterUrl(film.posterUrl);
+
       return {
         ...film,
+        posterUrl: signedPosterUrl,
         isAttending: film.isAttending > 0,
         creator,
         attendees: filmAttendees,
@@ -87,6 +92,17 @@ export async function POST(req: NextRequest) {
   const parsed = filmSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(parsed.error.format(), { status: 400 });
+  }
+
+  // Ensure user exists in db (handle stale sessions after db reset)
+  const userExists = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!userExists[0]) {
+    return new NextResponse("User not found", { status: 401 });
   }
 
   // Create film

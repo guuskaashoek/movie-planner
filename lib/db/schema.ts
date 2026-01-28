@@ -19,11 +19,12 @@ export const films = sqliteTable("films", {
     .references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
-  date: text("date").notNull(), // ISO date (YYYY-MM-DD) - screening date
-  releaseDate: text("release_date"), // ISO date (YYYY-MM-DD) - official release date
+  date: text("date"), // SCREENING date (Optional now)
+  releaseDate: text("release_date"), // RELEASE date
   startTime: text("start_time"), // HH:mm
   endTime: text("end_time"), // HH:mm
   posterUrl: text("poster_url"),
+  formats: text("formats"), // Comma separated: IMAX,4DX,3D,etc.
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(strftime('%s','now') * 1000)`),

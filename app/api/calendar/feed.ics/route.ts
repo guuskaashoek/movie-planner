@@ -2,7 +2,8 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db/client";
 import { films, attendees, users, boardSettings } from "@/lib/db/schema";
 import ical from "ical-generator";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
+import { signPosterUrl } from "@/lib/s3";
 
 export async function GET(req: NextRequest) {
   // Get user's share ID from query params
@@ -53,12 +54,7 @@ export async function GET(req: NextRequest) {
   const userFilms = await db
     .select()
     .from(films)
-    .where(
-      eq(
-        films.id,
-        filmIds.length === 1 ? filmIds[0] : (filmIds as any)
-      )
-    );
+    .where(inArray(films.id, filmIds));
 
   const calendar = ical({
     name: "My Films",
@@ -66,12 +62,47 @@ export async function GET(req: NextRequest) {
   });
 
   for (const film of userFilms) {
-    const date = film.date;
-    const startTime = film.startTime ?? "20:00";
-    const endTime = film.endTime ?? "22:00";
+    // Determine the event date: Screening Date > Release Date
+    const targetDateString = film.date || film.releaseDate;
 
-    const start = new Date(`${date}T${startTime}:00`);
-    const end = new Date(`${date}T${endTime}:00`);
+    // If no date at all, skip
+    if (!targetDateString) continue;
+
+    const eventDate = new Date(targetDateString);
+
+    let start: Date = eventDate;
+    let end: Date | null = null;
+    let allDay = true;
+
+    // If we have a screening date AND a start time, make it a time-based event
+    if (film.date && film.startTime) {
+      allDay = false;
+      start = new Date(`${film.date}T${film.startTime}:00`);
+
+      if (film.endTime) {
+        end = new Date(`${film.date}T${film.endTime}:00`);
+      } else {
+        // Default duration 2 hours
+        end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+      }
+    }
+
+    // Create description with formats, release date and poster
+    let description = "";
+
+    if (film.formats) {
+      description += `Format: ${film.formats}\n`;
+    }
+
+    if (film.releaseDate && film.date !== film.releaseDate) {
+      description += `Release Date: ${film.releaseDate}\n`;
+    }
+
+    if (film.posterUrl) {
+      // Sign URL for 7 days (604800 seconds)
+      const signedUrl = await signPosterUrl(film.posterUrl, 604800);
+      description += `\nPoster: ${signedUrl}`;
+    }
 
     // Get all attendees for this film
     const filmAttendees = await db
@@ -87,14 +118,15 @@ export async function GET(req: NextRequest) {
       .map((a) => a.name || a.email)
       .join(", ");
 
-    let description = film.description || "";
     if (attendeeNames) {
       description += `\n\nAttending: ${attendeeNames}`;
     }
 
+    // Create event
     calendar.createEvent({
       start,
-      end,
+      end: end || undefined,
+      allDay,
       summary: film.title,
       description: description || undefined,
     });

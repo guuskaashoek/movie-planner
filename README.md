@@ -19,7 +19,7 @@ Create a `.env.local` in the project root with at least:
 
 ```bash
 NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=change_me_to_a_long_random_string
+AUTH_SECRET=change_me_to_a_long_random_string
 
 GOOGLE_CLIENT_ID=your-google-oauth-client-id
 GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
@@ -33,11 +33,11 @@ WASABI_REGION=eu-central-1
 # WASABI_PUBLIC_BASE=https://s3.eu-central-1.wasabisys.com/your-wasabi-bucket-name
 ```
 
-- **`NEXTAUTH_SECRET`**: any long random string (used for JWT signing).
+- **`AUTH_SECRET`**: any long random string (used for JWT signing).
 - **Google**: create OAuth credentials in Google Cloud Console and whitelist `http://localhost:3000/api/auth/callback/google`.
 - **Wasabi**: use a bucket in region `eu-central-1`, and make sure objects are publicly readable (via bucket policy or ACL).
 
-Restart `npm run dev` whenever you change `.env.local`.
+Restart `npm run dev` whenever you change `.env`.
 
 ---
 

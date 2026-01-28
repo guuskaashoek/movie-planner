@@ -1,16 +1,18 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { films, boardSettings } from "@/lib/db/schema";
+import { films, boardSettings, attendees, users } from "@/lib/db/schema";
 import { BoardClient } from "./BoardClient";
 import { CalendarSubscription } from "./CalendarSubscription";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
+import { signPosterUrl } from "@/lib/s3";
 
 const PAGE_SIZE = 20;
 
 export default async function BoardPage() {
   const session = await auth();
+
   if (!session?.user) {
     redirect("/");
   }
@@ -18,12 +20,44 @@ export default async function BoardPage() {
   // @ts-expect-error id is added in auth callback
   const userId: number = session.user.id;
 
+  if (!userId) {
+    console.error("User ID not found in session");
+    redirect("/");
+  }
+
   // All films are on the board now
-  const initialFilms = await db
+  const allFilms = await db
     .select()
     .from(films)
     .orderBy(films.date, films.startTime)
     .limit(PAGE_SIZE);
+
+  // For each film, get attendee information
+  const initialFilms = await Promise.all(
+    allFilms.map(async (film) => {
+      const filmAttendees = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          image: users.image,
+        })
+        .from(attendees)
+        .innerJoin(users, eq(attendees.userId, users.id))
+        .where(eq(attendees.filmId, film.id));
+
+      const isAttending = filmAttendees.some((a) => a.id === userId);
+      const signedPosterUrl = await signPosterUrl(film.posterUrl);
+
+      return {
+        ...film,
+        posterUrl: signedPosterUrl,
+        attendees: filmAttendees,
+        attendeeCount: filmAttendees.length,
+        isAttending,
+      };
+    })
+  );
 
   const totalFilms = await db.select({ count: films.id }).from(films);
 

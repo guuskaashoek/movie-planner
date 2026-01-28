@@ -1,36 +1,104 @@
+import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { MyFilmsClient } from "./MyFilmsClient";
+import { db } from "@/lib/db/client";
+import { films, attendees, users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
+import { signPosterUrl } from "@/lib/s3";
 
 export default async function MyFilmsPage() {
   const session = await auth();
 
-  // @ts-expect-error id is added in auth callback
-  const userId: number | undefined = session?.user?.id;
-
-  if (!userId) {
-    return null;
+  if (session?.user) {
+    console.log("MyFilms Page - Session User:", JSON.stringify(session.user, null, 2));
   }
 
-  // Fetch all films from API (server-side)
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/films`, {
-    headers: {
-      cookie: `authjs.session-token=${session?.user?.id}`,
-    },
-    cache: "no-store",
-  });
+  if (!session?.user) {
+    redirect("/");
+  }
 
-  const data = await res.json();
-  const allFilms = data.films || [];
+  // @ts-expect-error id is added in auth callback
+  const userId: number = session.user.id;
+
+  if (!userId) {
+    redirect("/");
+  }
+
+  // Fetch all films directly from database
+  const allFilms = await db
+    .select({
+      id: films.id,
+      title: films.title,
+      description: films.description,
+      date: films.date,
+      releaseDate: films.releaseDate,
+      startTime: films.startTime,
+      endTime: films.endTime,
+      posterUrl: films.posterUrl,
+      formats: films.formats,
+      createdBy: films.createdBy,
+      createdAt: films.createdAt,
+    })
+    .from(films)
+    .orderBy(films.date, films.startTime);
+
+  // For each film, get attendee information and creator info
+  const filmsWithDetails = await Promise.all(
+    allFilms.map(async (film) => {
+      // Get creator info
+      const [creator] = await db
+        .select({
+          name: users.name,
+          email: users.email,
+          image: users.image,
+        })
+        .from(users)
+        .where(eq(users.id, film.createdBy));
+
+      // Get all attendees
+      const filmAttendees = await db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          image: users.image,
+        })
+        .from(attendees)
+        .innerJoin(users, eq(attendees.userId, users.id))
+        .where(eq(attendees.filmId, film.id));
+
+      const isAttending = filmAttendees.some((a) => a.id === userId);
+      const signedPosterUrl = await signPosterUrl(film.posterUrl);
+
+      return {
+        ...film,
+        posterUrl: signedPosterUrl,
+        creator,
+        attendees: filmAttendees,
+        attendeeCount: filmAttendees.length,
+        isAttending,
+      };
+    })
+  );
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-zinc-400">Signed in as</p>
-          <p className="text-sm font-medium text-zinc-100">
-            {session?.user?.name ?? session?.user?.email}
-          </p>
+        <div className="flex items-center gap-3">
+          {session.user.image && (
+            <img
+              src={session.user.image}
+              alt={session.user.name || session.user.email || "User"}
+              className="h-10 w-10 rounded-full border border-zinc-700"
+              referrerPolicy="no-referrer"
+            />
+          )}
+          <div>
+            <p className="text-xs text-zinc-400">Signed in as</p>
+            <p className="text-sm font-medium text-zinc-100">
+              {session.user.name ?? session.user.email}
+            </p>
+          </div>
         </div>
         <form
           action={async () => {
@@ -46,8 +114,9 @@ export default async function MyFilmsPage() {
           </button>
         </form>
       </div>
-      <MyFilmsClient initial={{ films: allFilms, currentUserId: userId }} />
+      <MyFilmsClient
+        initial={{ films: filmsWithDetails, currentUserId: userId }}
+      />
     </div>
   );
 }
-
