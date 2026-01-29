@@ -267,16 +267,31 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState<number | null>(null);
 
-  const [form, setForm] = useState({
+  type FormState = {
+    title: string;
+    date: string;
+    releaseDate: string;
+    startTime: string;
+    endTime: string;
+    posterFile: File | null;
+    currentPosterUrl: string | null;
+    selectedFormats: string[];
+  };
+
+  const initialFormState: FormState = {
     title: "",
-    date: "", // Screening date
+    date: "",
     releaseDate: "",
     startTime: "",
     endTime: "",
-    posterFile: null as File | null,
-    currentPosterUrl: null as string | null,
-    selectedFormats: [] as string[],
-  });
+    posterFile: null,
+    currentPosterUrl: null,
+    selectedFormats: [],
+  };
+
+  const [form, setForm] = useState<FormState>(initialFormState);
+  // Track original state to detect changes
+  const [originalForm, setOriginalForm] = useState<FormState>(initialFormState);
 
   // Filter shows only films created by me that I can manage
   const myManagedFilms = films.filter(
@@ -292,11 +307,38 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     });
   }
 
+  // Helper to check if a field is modified
+  function isModified(field: keyof FormState) {
+    if (!isEditing) return false;
+
+    if (field === 'selectedFormats') {
+      const sortedA = [...form.selectedFormats].sort().join(',');
+      const sortedB = [...originalForm.selectedFormats].sort().join(',');
+      return sortedA !== sortedB;
+    }
+
+    // Poster file change is always a modification
+    if (field === 'posterFile') {
+      return !!form.posterFile;
+    }
+
+    return form[field] !== originalForm[field];
+  }
+
+  // Helper class for modified inputs
+  const getFieldClass = (field: keyof FormState, baseClass: string) => {
+    return classNames(
+      baseClass,
+      isModified(field) ? "border-amber-500/50 ring-1 ring-amber-500/20 bg-amber-500/5" : ""
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
       let posterUrl = form.currentPosterUrl;
+      let posterChanged = false;
 
       // Upload new poster if selected
       if (form.posterFile) {
@@ -309,28 +351,59 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
         if (!uploadRes.ok) throw new Error("Upload failed");
         const uploadJson = (await uploadRes.json()) as { url: string };
         posterUrl = uploadJson.url;
+        posterChanged = true;
+      } else if (form.currentPosterUrl !== originalForm.currentPosterUrl) {
+        // Poster was removed or changed without upload (e.g. if we supported selecting from library)
+        posterChanged = true;
       }
 
-      const body = {
-        title: form.title,
-        date: form.date || null, // Handle empty string as null
-        releaseDate: form.releaseDate || null,
-        startTime: form.date ? (form.startTime || null) : null, // Only send time if date exists
-        endTime: form.date ? (form.endTime || null) : null,
-        posterUrl: posterUrl ?? null,
-        formats: form.selectedFormats.length > 0 ? form.selectedFormats.join(",") : null,
-      };
-
       if (isEditing) {
-        // UPDATE existing film
+        // UPDATE existing film - Only send changed fields
+        const body: any = {};
+
+        if (isModified('title')) body.title = form.title;
+        if (isModified('date')) body.date = form.date || null;
+        if (isModified('releaseDate')) body.releaseDate = form.releaseDate || null;
+
+        // Time depends on date, but if only time changed, we update it.
+        // If date changed, we should probably send time too.
+        if (isModified('startTime') || isModified('date')) body.startTime = form.date ? (form.startTime || null) : null;
+        if (isModified('endTime') || isModified('date')) body.endTime = form.date ? (form.endTime || null) : null;
+
+        if (isModified('selectedFormats')) {
+          body.formats = form.selectedFormats.length > 0 ? form.selectedFormats.join(",") : null;
+        }
+
+        if (posterChanged) {
+          body.posterUrl = posterUrl ?? null;
+        }
+
+        if (Object.keys(body).length === 0) {
+          // No changes
+          setLoading(false);
+          alert("No changes to save.");
+          return;
+        }
+
         const res = await fetch(`/api/films/${isEditing}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error("Update failed");
+
       } else {
-        // CREATE new film
+        // CREATE new film - Send all fields
+        const body = {
+          title: form.title,
+          date: form.date || null,
+          releaseDate: form.releaseDate || null,
+          startTime: form.date ? (form.startTime || null) : null,
+          endTime: form.date ? (form.endTime || null) : null,
+          posterUrl: posterUrl ?? null,
+          formats: form.selectedFormats.length > 0 ? form.selectedFormats.join(",") : null,
+        };
+
         const res = await fetch("/api/films", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -360,7 +433,7 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
 
   function handleEdit(film: Film) {
     setIsEditing(film.id);
-    setForm({
+    const newFormState = {
       title: film.title,
       date: film.date || "",
       releaseDate: film.releaseDate || "",
@@ -369,22 +442,16 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
       posterFile: null,
       currentPosterUrl: film.posterUrl,
       selectedFormats: film.formats ? film.formats.split(",") : [],
-    });
+    };
+    setForm(newFormState);
+    setOriginalForm(newFormState);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function resetForm() {
     setIsEditing(null);
-    setForm({
-      title: "",
-      date: "",
-      releaseDate: "",
-      startTime: "",
-      endTime: "",
-      posterFile: null,
-      currentPosterUrl: null,
-      selectedFormats: [],
-    });
+    setForm(initialFormState);
+    setOriginalForm(initialFormState);
   }
 
   return (
@@ -404,23 +471,25 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Film Title <span className="text-red-400">*</span>
+            <label className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              <span>Film Title <span className="text-red-400">*</span></span>
+              {isEditing && isModified("title") && <span className="text-amber-500">Modified</span>}
             </label>
             <input
               required
               placeholder="e.g. Inception"
-              className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+              className={getFieldClass("title", "w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-zinc-100 placeholder-zinc-600 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all")}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
 
           <div className="space-y-3">
-            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Experience / Formats
+            <label className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              <span>Experience / Formats</span>
+              {isEditing && isModified("selectedFormats") && <span className="text-amber-500">Modified</span>}
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className={classNames("flex flex-wrap gap-2 p-2 rounded-lg border border-transparent transition-all", isEditing && isModified("selectedFormats") ? "border-amber-500/30 bg-amber-500/5" : "")}>
               {FORMAT_OPTIONS.map((fmt) => {
                 const isSelected = form.selectedFormats.includes(fmt);
                 return (
@@ -443,21 +512,25 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
-            <CustomDatePicker
-              label="Screening Date"
-              value={form.date}
-              onChange={(date) => setForm({ ...form, date })}
-              optional
-              description="When are we watching?"
-            />
+            <div className={isEditing && isModified("date") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
+              <CustomDatePicker
+                label="Screening Date"
+                value={form.date}
+                onChange={(date) => setForm({ ...form, date })}
+                optional
+                description="When are we watching?"
+              />
+            </div>
 
-            <CustomDatePicker
-              label="Release Date"
-              value={form.releaseDate}
-              onChange={(date) => setForm({ ...form, releaseDate: date })}
-              optional
-              description="Original cinema release"
-            />
+            <div className={isEditing && isModified("releaseDate") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
+              <CustomDatePicker
+                label="Release Date"
+                value={form.releaseDate}
+                onChange={(date) => setForm({ ...form, releaseDate: date })}
+                optional
+                description="Original cinema release"
+              />
+            </div>
           </div>
 
           {/* Time fields - ONLY show if a screening date is selected */}
@@ -465,23 +538,28 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
             <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4 transition-all animate-in fade-in slide-in-from-top-4">
               <h4 className="mb-3 text-xs font-semibold uppercase text-zinc-500">Screening Time</h4>
               <div className="grid gap-4 sm:grid-cols-2">
-                <CustomTimePicker
-                  label="Start Time"
-                  value={form.startTime}
-                  onChange={(time) => setForm({ ...form, startTime: time })}
-                />
-                <CustomTimePicker
-                  label="End Time"
-                  value={form.endTime}
-                  onChange={(time) => setForm({ ...form, endTime: time })}
-                />
+                <div className={isEditing && isModified("startTime") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
+                  <CustomTimePicker
+                    label="Start Time"
+                    value={form.startTime}
+                    onChange={(time) => setForm({ ...form, startTime: time })}
+                  />
+                </div>
+                <div className={isEditing && isModified("endTime") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
+                  <CustomTimePicker
+                    label="End Time"
+                    value={form.endTime}
+                    onChange={(time) => setForm({ ...form, endTime: time })}
+                  />
+                </div>
               </div>
             </div>
           )}
 
           <div className="space-y-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
-              Poster Image
+            <label className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">
+              <span>Poster Image</span>
+              {isEditing && (isModified("posterFile") || isModified("currentPosterUrl")) && <span className="text-amber-500">Modified</span>}
             </label>
 
             {/* Current Poster Preview */}
@@ -504,13 +582,21 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
               </div>
             )}
 
-            <label className="group flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed border-zinc-700 bg-zinc-950/50 py-10 transition-all hover:border-zinc-500 hover:bg-zinc-900">
-              <div className="rounded-full bg-zinc-900 p-3 text-zinc-500 group-hover:text-zinc-300 transition-colors">
+            <label className={classNames(
+              "group flex cursor-pointer flex-col items-center gap-3 rounded-xl border border-dashed transition-all",
+              isEditing && (isModified("posterFile") || (!form.currentPosterUrl && originalForm.currentPosterUrl))
+                ? "border-amber-500/50 bg-amber-500/5"
+                : "border-zinc-700 bg-zinc-950/50 hover:border-zinc-500 hover:bg-zinc-900",
+              "py-10"
+            )}>
+              <div className={classNames("rounded-full p-3 transition-colors",
+                isEditing && isModified("posterFile") ? "bg-amber-500/20 text-amber-500" : "bg-zinc-900 text-zinc-500 group-hover:text-zinc-300"
+              )}>
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <span className="text-sm text-zinc-400 group-hover:text-zinc-200">
+              <span className={classNames("text-sm group-hover:text-zinc-200", isEditing && isModified("posterFile") ? "text-amber-500" : "text-zinc-400")}>
                 {form.posterFile
                   ? form.posterFile.name
                   : "Click to upload poster image"}
@@ -552,6 +638,8 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           </div>
         </form>
       </section>
+
+      {/* ... */}
 
       {/* --- MANAGED FILMS LIST --- */}
       <section className="space-y-6">
