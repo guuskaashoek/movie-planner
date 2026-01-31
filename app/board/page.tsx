@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { films, boardSettings, attendees, users } from "@/lib/db/schema";
 import { BoardClient } from "./BoardClient";
 import { CalendarSubscription } from "./CalendarSubscription";
-import { eq } from "drizzle-orm";
+import { eq, gte, or, isNull, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { signPosterUrl } from "@/lib/s3";
 
@@ -35,11 +35,10 @@ export default async function BoardPage() {
   const allFilms = await db
     .select()
     .from(films)
-    .orderBy(films.date, films.startTime)
-    .limit(PAGE_SIZE);
+    .orderBy(films.date, films.startTime);
 
   // For each film, get attendee information
-  const initialFilms = await Promise.all(
+  const filmsWithAttendees = await Promise.all(
     allFilms.map(async (film) => {
       const filmAttendees = await db
         .select({
@@ -64,10 +63,6 @@ export default async function BoardPage() {
       };
     })
   );
-
-  const totalFilms = await db.select({ count: films.id }).from(films);
-
-  const hasMore = (totalFilms[0]?.count ?? 0) > initialFilms.length;
 
   // Get or create user's board settings for calendar feed
   let [userSettings] = await db
@@ -111,8 +106,9 @@ export default async function BoardPage() {
 
       <BoardClient
         initial={{
-          films: initialFilms,
-          hasMore,
+          films: filmsWithAttendees,
+          hasMore: false,
+          currentUserEmail: session.user.email,
         }}
       />
     </div>

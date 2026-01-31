@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { films, attendees, users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, gte, or, isNull, sql } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
 
 const PAGE_SIZE = 20;
@@ -20,10 +20,15 @@ export async function GET(req: NextRequest) {
   const page = Number(searchParams.get("page") ?? "0");
   const safePage = Number.isNaN(page) || page < 0 ? 0 : page;
 
+  // Filter: Upcoming films (date >= today) or TBA (date is null)
+  const today = new Date().toISOString().split("T")[0];
+  const whereClause = or(isNull(films.date), gte(films.date, today));
+
   // Get all films
   const pageFilms = await db
     .select()
     .from(films)
+    .where(whereClause)
     .orderBy(films.date, films.startTime)
     .limit(PAGE_SIZE)
     .offset(safePage * PAGE_SIZE);
@@ -55,9 +60,12 @@ export async function GET(req: NextRequest) {
     })
   );
 
-  const totalFilms = await db.select({ count: films.id }).from(films);
+  const [totalCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(films)
+    .where(whereClause);
 
-  const hasMore = (totalFilms[0]?.count ?? 0) > (safePage + 1) * PAGE_SIZE;
+  const hasMore = (totalCount?.count ?? 0) > (safePage + 1) * PAGE_SIZE;
 
   return NextResponse.json({
     films: filmsWithAttendees,
