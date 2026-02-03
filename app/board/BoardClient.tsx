@@ -23,6 +23,10 @@ type Film = {
   attendees: Attendee[];
   attendeeCount: number;
   isAttending: boolean;
+  canRate: boolean;
+  myRating: number | null;
+  averageRating: number | null;
+  ratingCount: number;
 };
 
 
@@ -37,6 +41,24 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   const [films, setFilms] = useState<Film[]>(initial.films);
   const [showPast, setShowPast] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
+
+  function hasFilmEnded(date: string | null, endTime: string | null) {
+    if (!date) return false;
+    const now = new Date();
+    const todayValue = now.toISOString().split("T")[0];
+    if (date < todayValue) return true;
+    if (date > todayValue) return false;
+    if (!endTime) return false;
+
+    const [hourString, minuteString] = endTime.split(":");
+    const hour = Number(hourString);
+    const minute = Number(minuteString);
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return false;
+
+    const endAt = new Date(now);
+    endAt.setHours(hour, minute, 0, 0);
+    return now >= endAt;
+  }
 
   async function handleAdminFix() {
     if (!confirm("Start database synchronization for all films?")) return;
@@ -62,12 +84,46 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
               attendeeCount: currentlyAttending
                 ? film.attendeeCount - 1
                 : film.attendeeCount + 1,
+              canRate: !currentlyAttending && hasFilmEnded(film.date, film.endTime),
             };
           }
           return film;
         })
       );
     }
+  }
+
+  async function handleRateFilm(filmId: number, rating: number) {
+    const res = await fetch(`/api/films/${filmId}/rating`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating }),
+    });
+
+    if (!res.ok) {
+      const message = await res.text();
+      alert(message || "Rating failed");
+      return;
+    }
+
+    const json = (await res.json()) as {
+      myRating: number;
+      averageRating: number | null;
+      ratingCount: number;
+    };
+
+    setFilms((prev) =>
+      prev.map((film) =>
+        film.id === filmId
+          ? {
+              ...film,
+              myRating: json.myRating,
+              averageRating: json.averageRating,
+              ratingCount: json.ratingCount,
+            }
+          : film
+      )
+    );
   }
 
   // --- DERIVED STATE ---
@@ -190,7 +246,37 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                     )}
                   </div>
 
-                  <div className="mt-4 flex flex-col items-start justify-between gap-4 border-t border-white/5 pt-4 sm:flex-row sm:items-center">
+                  <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+                    {(film.ratingCount > 0 || film.canRate) && (
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-xs text-zinc-400">
+                          {film.averageRating
+                            ? `${film.averageRating.toFixed(1)} / 5 (${film.ratingCount})`
+                            : "No ratings yet"}
+                        </span>
+                        {film.canRate && (
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <button
+                                key={`${film.id}-${star}`}
+                                type="button"
+                                onClick={() => handleRateFilm(film.id, star)}
+                                className={`rounded px-1 text-base transition-colors ${
+                                  (film.myRating ?? 0) >= star
+                                    ? "text-amber-400"
+                                    : "text-zinc-600 hover:text-zinc-300"
+                                }`}
+                                aria-label={`Rate ${star} stars`}
+                              >
+                                ★
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                     {/* Attendees logic similar to before */}
                     {film.attendees.length > 0 ? (
                       <div className="flex -space-x-2 overflow-hidden">
@@ -221,6 +307,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                     >
                       <span>{film.isAttending ? "I'm going" : "Join Screening"}</span>
                     </button>
+                    </div>
                   </div>
                 </div>
               </div>

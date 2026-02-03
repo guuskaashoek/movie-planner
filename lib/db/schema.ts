@@ -1,4 +1,4 @@
-import { sqliteTable, integer, text } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
@@ -42,6 +42,29 @@ export const attendees = sqliteTable("attendees", {
     .notNull()
     .default(sql`(strftime('%s','now') * 1000)`),
 });
+
+export const filmRatings = sqliteTable(
+  "film_ratings",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    filmId: integer("film_id")
+      .notNull()
+      .references(() => films.id, { onDelete: "cascade" }),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    rating: integer("rating").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .default(sql`(strftime('%s','now') * 1000)`),
+  },
+  (table) => ({
+    filmUserUnique: uniqueIndex("film_ratings_film_user_unique").on(
+      table.filmId,
+      table.userId
+    ),
+  })
+);
 
 export const boardSettings = sqliteTable("board_settings", {
   id: integer("id").primaryKey({ autoIncrement: true }),

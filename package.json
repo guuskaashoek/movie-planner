@@ -5,10 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "sh ./scripts/start-prod.sh",
+    "start:next": "next start",
     "lint": "eslint",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "db:push:force": "drizzle-kit push --force",
+    "dev:fresh": "sh ./scripts/dev-fresh.sh"
   },
   "dependencies": {
     "@auth/core": "^0.37.2",

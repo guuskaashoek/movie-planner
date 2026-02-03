@@ -1,14 +1,32 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { films, boardSettings, attendees, users } from "@/lib/db/schema";
+import { films, boardSettings, attendees, users, filmRatings } from "@/lib/db/schema";
 import { BoardClient } from "./BoardClient";
 import { CalendarSubscription } from "./CalendarSubscription";
-import { eq, gte, or, isNull, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { signPosterUrl } from "@/lib/s3";
 
-const PAGE_SIZE = 20;
+function hasFilmEnded(date: string | null, endTime: string | null) {
+  if (!date) return false;
+
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+
+  if (date < today) return true;
+  if (date > today) return false;
+
+  if (!endTime) return false;
+  const [hourString, minuteString] = endTime.split(":");
+  const hour = Number(hourString);
+  const minute = Number(minuteString);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return false;
+
+  const endAt = new Date(now);
+  endAt.setHours(hour, minute, 0, 0);
+  return now >= endAt;
+}
 
 export default async function BoardPage() {
   const session = await auth();
@@ -53,6 +71,18 @@ export default async function BoardPage() {
 
       const isAttending = filmAttendees.some((a) => a.id === userId);
       const signedPosterUrl = await signPosterUrl(film.posterUrl);
+      const allRatings = await db
+        .select({ rating: filmRatings.rating, userId: filmRatings.userId })
+        .from(filmRatings)
+        .where(eq(filmRatings.filmId, film.id));
+
+      const ratingCount = allRatings.length;
+      const averageRating =
+        ratingCount > 0
+          ? allRatings.reduce((sum, r) => sum + r.rating, 0) / ratingCount
+          : null;
+      const myRating =
+        allRatings.find((rating) => rating.userId === userId)?.rating ?? null;
 
       return {
         ...film,
@@ -60,6 +90,10 @@ export default async function BoardPage() {
         attendees: filmAttendees,
         attendeeCount: filmAttendees.length,
         isAttending,
+        canRate: isAttending && hasFilmEnded(film.date, film.endTime),
+        myRating,
+        ratingCount,
+        averageRating,
       };
     })
   );
@@ -114,4 +148,3 @@ export default async function BoardPage() {
     </div>
   );
 }
-
