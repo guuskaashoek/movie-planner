@@ -261,11 +261,94 @@ function CustomTimePicker({
   );
 }
 
+function FilmRow({
+  film,
+  onEdit,
+  onDelete,
+  isPast = false,
+}: {
+  film: Film;
+  onEdit: (film: Film) => void;
+  onDelete: (id: number) => void;
+  isPast?: boolean;
+}) {
+  return (
+    <div
+      className={classNames(
+        "group flex gap-4 overflow-hidden rounded-xl border p-1 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 hover:shadow-md",
+        isPast
+          ? "border-zinc-800/50 bg-zinc-900/20 opacity-70 hover:opacity-100"
+          : "border-zinc-800 bg-zinc-900/30"
+      )}
+    >
+      <div className="relative aspect-[2/3] w-20 flex-none overflow-hidden rounded-lg bg-zinc-950">
+        {film.posterUrl ? (
+          <img
+            src={film.posterUrl}
+            alt={film.title}
+            className={classNames(
+              "h-full w-full object-cover transition-transform duration-500 group-hover:scale-110",
+              isPast ? "grayscale-[0.4] group-hover:grayscale-0" : ""
+            )}
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-zinc-800">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col justify-between py-2 pr-4">
+        <div>
+          <h4 className="font-semibold text-zinc-200">{film.title}</h4>
+          <div className="space-y-0.5">
+            {film.date ? (
+              <p className="text-xs text-zinc-500">
+                Screening: {format(new Date(film.date), "dd MMM yyyy")}
+              </p>
+            ) : film.releaseDate ? (
+              <p className="text-xs text-zinc-500">
+                Released: {format(new Date(film.releaseDate), "dd MMM yyyy")}
+              </p>
+            ) : (
+              <p className="text-xs text-zinc-500">Date TBD</p>
+            )}
+          </div>
+          {film.formats && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {film.formats.split(",").map(f => (
+                <span key={f} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 uppercase tracking-wide border border-zinc-700/50">{f}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-4">
+          <button
+            onClick={() => onEdit(film)}
+            className="text-xs font-semibold text-blue-400 hover:text-blue-300 hover:underline"
+          >
+            Edit
+          </button>
+          <button
+            onClick={() => onDelete(film.id)}
+            className="text-xs font-semibold text-zinc-600 hover:text-red-400 hover:underline"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MyFilmsClient({ initial }: { initial: InitialData }) {
   const router = useRouter();
   const [films, setFilms] = useState<Film[]>(initial.films);
   const [loading, setLoading] = useState(false);
   const [isEditing, setIsEditing] = useState<number | null>(null);
+  const [showPastManaged, setShowPastManaged] = useState(false);
 
   type FormState = {
     title: string;
@@ -293,10 +376,30 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
   // Track original state to detect changes
   const [originalForm, setOriginalForm] = useState<FormState>(initialFormState);
 
+  const today = new Date().toISOString().split("T")[0];
+
   // Filter shows only films created by me that I can manage
-  const myManagedFilms = films.filter(
-    (f) => f.createdBy === initial.currentUserId
-  );
+  const allMyFilms = films.filter((f) => f.createdBy === initial.currentUserId);
+
+  // A film is "past" if its screening date has passed, or (no screening date but release date has passed)
+  const isPastFilm = (f: Film) =>
+    (f.date && f.date < today) || (!f.date && f.releaseDate && f.releaseDate < today);
+
+  const pastManagedFilms = allMyFilms
+    .filter(isPastFilm)
+    .sort((a, b) => {
+      const aKey = a.date ?? a.releaseDate ?? "";
+      const bKey = b.date ?? b.releaseDate ?? "";
+      return bKey.localeCompare(aKey); // newest first
+    });
+
+  const myManagedFilms = allMyFilms
+    .filter((f) => !isPastFilm(f))
+    .sort((a, b) => {
+      const aKey = a.date ?? a.releaseDate ?? "9999";
+      const bKey = b.date ?? b.releaseDate ?? "9999";
+      return aKey.localeCompare(bKey); // soonest first, TBA last
+    });
 
   function toggleFormat(fmt: string) {
     setForm((prev) => {
@@ -645,62 +748,43 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
       <section className="space-y-6">
         <h3 className="text-lg font-bold text-zinc-100">Managed by You</h3>
 
-        {myManagedFilms.length === 0 ? (
+        {myManagedFilms.length === 0 && pastManagedFilms.length === 0 ? (
           <p className="text-center text-sm text-zinc-500 py-8 italic">You haven't added any films yet.</p>
         ) : (
           <div className="space-y-4">
             {myManagedFilms.map((film) => (
-              <div
-                key={film.id}
-                className="group flex gap-4 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/30 p-1 transition-all hover:border-zinc-700 hover:bg-zinc-900/50 hover:shadow-md"
-              >
-                <div className="relative aspect-[2/3] w-20 flex-none overflow-hidden rounded-lg bg-zinc-950">
-                  {film.posterUrl ? (
-                    <img
-                      src={film.posterUrl}
-                      alt={film.title}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      referrerPolicy="no-referrer"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-zinc-800">
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-1 flex-col justify-between py-2 pr-4">
-                  <div>
-                    <h4 className="font-semibold text-zinc-200">{film.title}</h4>
-                    <p className="text-xs text-zinc-500">
-                      {film.date ? `Screening: ${format(new Date(film.date), "dd MMM yyyy")}` : "Date TBD"}
-                    </p>
-                    {film.formats && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {film.formats.split(",").map(f => (
-                          <span key={f} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 uppercase tracking-wide border border-zinc-700/50">{f}</span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => handleEdit(film)}
-                      className="text-xs font-semibold text-blue-400 hover:text-blue-300 hover:underline"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(film.id)}
-                      className="text-xs font-semibold text-zinc-600 hover:text-red-400 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
+              <FilmRow key={film.id} film={film} onEdit={handleEdit} onDelete={handleDelete} />
             ))}
+
+            {/* PAST MANAGED FILMS */}
+            {pastManagedFilms.length > 0 && (
+              <div className="pt-2">
+                <button
+                  onClick={() => setShowPastManaged(!showPastManaged)}
+                  className="flex w-full items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-left transition-all hover:bg-zinc-900/50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-zinc-400 transition-transform ${showPastManaged ? "rotate-90" : ""}`}>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-zinc-200">Past Films</h4>
+                      <p className="text-xs text-zinc-500">{pastManagedFilms.length} {pastManagedFilms.length === 1 ? "film" : "films"} already shown or released</p>
+                    </div>
+                  </div>
+                </button>
+
+                {showPastManaged && (
+                  <div className="mt-4 space-y-3 animate-in slide-in-from-top-4 fade-in duration-300">
+                    {pastManagedFilms.map((film) => (
+                      <FilmRow key={film.id} film={film} onEdit={handleEdit} onDelete={handleDelete} isPast />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </section>

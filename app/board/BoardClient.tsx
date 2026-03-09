@@ -40,6 +40,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   const router = useRouter();
   const [films, setFilms] = useState<Film[]>(initial.films);
   const [showPast, setShowPast] = useState(false);
+  const [showPastReleases, setShowPastReleases] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
 
   function hasFilmEnded(date: string | null, endTime: string | null) {
@@ -130,8 +131,12 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   const today = new Date().toISOString().split("T")[0];
 
   const pastFilms = films.filter(f => f.date && f.date < today);
-  // Upcoming = Future date OR No date (TBA)
-  const upcomingFilms = films.filter(f => !f.date || f.date >= today);
+  // Past releases: no screening date, but release date is in the past
+  const pastReleaseFilms = films.filter(f => !f.date && f.releaseDate && f.releaseDate < today);
+  // Upcoming = Future/today screening date OR no screening date and no past release date (true TBA)
+  const upcomingFilms = films.filter(f =>
+    (f.date && f.date >= today) || (!f.date && (!f.releaseDate || f.releaseDate >= today))
+  );
 
   const groupFilms = (list: Film[]) => {
     return list.reduce<Record<string, Film[]>>((acc, film) => {
@@ -142,10 +147,12 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   };
 
   const pastGrouped = groupFilms(pastFilms);
+  const pastReleasesGrouped = groupFilms(pastReleaseFilms);
   const upcomingGrouped = groupFilms(upcomingFilms);
 
   // Sort Past: Descending (Newest -> Oldest)
   const pastDates = Object.keys(pastGrouped).sort((a, b) => b.localeCompare(a));
+  const pastReleaseDates = Object.keys(pastReleasesGrouped).sort((a, b) => b.localeCompare(a));
 
   // Sort Upcoming: Ascending (Oldest -> Newest), TBA last
   const upcomingDates = Object.keys(upcomingGrouped).sort((a, b) => {
@@ -155,7 +162,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   });
 
   // --- RENDER HELPER ---
-  const renderDateGroup = (date: string, groupFilms: Film[]) => {
+  const renderDateGroup = (date: string, groupFilms: Film[], isPast = false) => {
     const isTBA = date === "TBA";
     const dateObj = isTBA ? null : new Date(date);
     const isToday = !isTBA && today === date;
@@ -194,7 +201,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
               key={film.id}
               className={`group relative overflow-hidden rounded-2xl border transition-all hover:border-zinc-700 hover:bg-zinc-900/60 ${
                 // Dim past films slightly
-                date < today && !isTBA ? "border-zinc-800/50 bg-zinc-900/20 opacity-75 grayscale-[0.3] hover:opacity-100 hover:grayscale-0" : "border-zinc-800 bg-zinc-900/40"
+                (date < today && !isTBA) || isPast ? "border-zinc-800/50 bg-zinc-900/20 opacity-75 grayscale-[0.3] hover:opacity-100 hover:grayscale-0" : "border-zinc-800 bg-zinc-900/40"
                 }`}
             >
               <div className="flex gap-4 p-3 sm:gap-6">
@@ -370,6 +377,34 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
           {showPast && (
             <div className="mt-8 space-y-12 animate-in slide-in-from-top-4 fade-in duration-300">
               {pastDates.map(date => renderDateGroup(date, pastGrouped[date]))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* PAST RELEASES TOGGLE */}
+      {pastReleaseFilms.length > 0 && (
+        <div className="mb-8 border-b border-zinc-800 pb-8">
+          <button
+            onClick={() => setShowPastReleases(!showPastReleases)}
+            className="flex w-full items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/30 px-4 py-3 text-left transition-all hover:bg-zinc-900/50"
+          >
+            <div className="flex items-center gap-3">
+              <div className={`flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-zinc-400 transition-transform ${showPastReleases ? "rotate-90" : ""}`}>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-200">Past Releases</h3>
+                <p className="text-xs text-zinc-500">{pastReleaseFilms.length} {pastReleaseFilms.length === 1 ? "film" : "films"} already released</p>
+              </div>
+            </div>
+          </button>
+
+          {showPastReleases && (
+            <div className="mt-8 space-y-12 animate-in slide-in-from-top-4 fade-in duration-300">
+              {pastReleaseDates.map(date => renderDateGroup(date, pastReleasesGrouped[date], true))}
             </div>
           )}
         </div>
