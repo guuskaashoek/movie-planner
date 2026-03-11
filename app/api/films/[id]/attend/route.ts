@@ -22,35 +22,28 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         return new NextResponse("Invalid film ID", { status: 400 });
     }
 
-    // Check if already attending
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get("type") === "interested" ? "interested" : "going";
+
+    // Check if already exists for this type
     const existing = await db
         .select()
         .from(attendees)
         .where(
-            sql`${attendees.filmId} = ${filmId} AND ${attendees.userId} = ${userId}`
+            sql`${attendees.filmId} = ${filmId} AND ${attendees.userId} = ${userId} AND ${attendees.type} = ${type}`
         );
 
     if (existing.length > 0) {
-        return NextResponse.json({ message: "Already attending" }, { status: 200 });
+        return NextResponse.json({ message: "Already registered" }, { status: 200 });
     }
 
-    // Add user as attendee
-    await db.insert(attendees).values({
-        filmId,
-        userId,
-    });
+    await db.insert(attendees).values({ filmId, userId, type });
 
-    // Get updated attendee list
     const filmAttendees = await db
-        .select({
-            id: users.id,
-            name: users.name,
-            email: users.email,
-            image: users.image,
-        })
+        .select({ id: users.id, name: users.name, email: users.email, image: users.image })
         .from(attendees)
         .innerJoin(users, eq(attendees.userId, users.id))
-        .where(eq(attendees.filmId, filmId));
+        .where(sql`${attendees.filmId} = ${filmId} AND ${attendees.type} = ${type}`);
 
     return NextResponse.json({ attendees: filmAttendees }, { status: 201 });
 }
@@ -69,24 +62,20 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
         return new NextResponse("Invalid film ID", { status: 400 });
     }
 
-    // Remove user from attendees
+    const { searchParams } = new URL(req.url);
+    const type = searchParams.get("type") === "interested" ? "interested" : "going";
+
     await db
         .delete(attendees)
         .where(
-            sql`${attendees.filmId} = ${filmId} AND ${attendees.userId} = ${userId}`
+            sql`${attendees.filmId} = ${filmId} AND ${attendees.userId} = ${userId} AND ${attendees.type} = ${type}`
         );
 
-    // Get updated attendee list
     const filmAttendees = await db
-        .select({
-            id: users.id,
-            name: users.name,
-            email: users.email,
-            image: users.image,
-        })
+        .select({ id: users.id, name: users.name, email: users.email, image: users.image })
         .from(attendees)
         .innerJoin(users, eq(attendees.userId, users.id))
-        .where(eq(attendees.filmId, filmId));
+        .where(sql`${attendees.filmId} = ${filmId} AND ${attendees.type} = ${type}`);
 
     return NextResponse.json({ attendees: filmAttendees }, { status: 200 });
 }

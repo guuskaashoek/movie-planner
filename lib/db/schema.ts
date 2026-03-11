@@ -39,6 +39,8 @@ export const attendees = sqliteTable("attendees", {
   userId: integer("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
+  // 'going' = attending a scheduled screening, 'interested' = wants to see the film
+  type: text("type").notNull().default("going"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(strftime('%s','now') * 1000)`),
