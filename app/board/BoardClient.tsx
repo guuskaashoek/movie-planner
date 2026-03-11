@@ -319,15 +319,21 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                       <span className="text-xs text-zinc-500 italic">No one attending yet</span>
                     )}
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => toggleAttending(film.id, film.isAttending)}
-                        className={`group/btn relative flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${film.isAttending
-                          ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                          : "bg-white text-zinc-950 shadow-sm hover:bg-zinc-200"
-                          }`}
-                      >
-                        <span>{film.isAttending ? "I'm going" : "Join Screening"}</span>
-                      </button>
+                      {film.date ? (
+                        <button
+                          onClick={() => toggleAttending(film.id, film.isAttending)}
+                          className={`group/btn relative flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${film.isAttending
+                            ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                            : "bg-white text-zinc-950 shadow-sm hover:bg-zinc-200"
+                            }`}
+                        >
+                          <span>{film.isAttending ? "I'm going" : "Join Screening"}</span>
+                        </button>
+                      ) : (
+                        <span className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-2 text-xs text-zinc-500">
+                          No screening planned
+                        </span>
+                      )}
                       {film.inviteToken && (
                         <button
                           onClick={() => copyInviteLink(film)}
