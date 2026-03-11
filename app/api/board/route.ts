@@ -56,18 +56,20 @@ export async function GET(req: NextRequest) {
   // For each film, get attendee information
   const filmsWithAttendees = await Promise.all(
     pageFilms.map(async (film) => {
-      const filmAttendees = await db
-        .select({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          image: users.image,
-        })
+      const goingUsers = await db
+        .select({ id: users.id, name: users.name, email: users.email, image: users.image })
         .from(attendees)
         .innerJoin(users, eq(attendees.userId, users.id))
-        .where(eq(attendees.filmId, film.id));
+        .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'going'`);
 
-      const isAttending = filmAttendees.some((a) => a.id === currentUserId);
+      const interestedUsers = await db
+        .select({ id: users.id, name: users.name, email: users.email, image: users.image })
+        .from(attendees)
+        .innerJoin(users, eq(attendees.userId, users.id))
+        .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'interested'`);
+
+      const isGoing = goingUsers.some((a) => a.id === currentUserId);
+      const isInterested = interestedUsers.some((a) => a.id === currentUserId);
       const signedPosterUrl = await signPosterUrl(film.posterUrl);
       const allRatings = await db
         .select({ rating: filmRatings.rating, userId: filmRatings.userId })
@@ -85,10 +87,13 @@ export async function GET(req: NextRequest) {
       return {
         ...film,
         posterUrl: signedPosterUrl,
-        attendees: filmAttendees,
-        attendeeCount: filmAttendees.length,
-        isAttending,
-        canRate: isAttending && hasFilmEnded(film.date, film.endTime),
+        goingUsers,
+        interestedUsers,
+        isGoing,
+        isInterested,
+        // legacy fields kept for canRate
+        isAttending: isGoing,
+        canRate: isGoing && hasFilmEnded(film.date, film.endTime),
         myRating,
         ratingCount,
         averageRating,
