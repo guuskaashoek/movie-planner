@@ -264,10 +264,11 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                         {film.title}
                       </h3>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-400">
-                        {(film.startTime || film.endTime) && (
+                        {film.date && (
                           <span className="flex items-center gap-1.5 rounded-md bg-zinc-800/50 px-2 py-0.5 text-xs font-medium text-zinc-300">
-                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            {film.startTime}{film.endTime && ` – ${film.endTime}`}
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            {new Date(film.date).toLocaleDateString("nl-NL", { day: "numeric", month: "long", year: "numeric" })}
+                            {film.startTime && <>{" · "}{film.startTime}{film.endTime && ` – ${film.endTime}`}</>}
                           </span>
                         )}
                         {film.formats && film.formats.split(",").map(fmt => (
