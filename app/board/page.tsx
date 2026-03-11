@@ -4,7 +4,7 @@ import { db } from "@/lib/db/client";
 import { films, boardSettings, attendees, users, filmRatings } from "@/lib/db/schema";
 import { BoardClient } from "./BoardClient";
 import { CalendarSubscription } from "./CalendarSubscription";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { signPosterUrl } from "@/lib/s3";
 
@@ -67,18 +67,20 @@ export default async function BoardPage() {
   // For each film, get attendee information
   const filmsWithAttendees = await Promise.all(
     allFilms.map(async (film) => {
-      const filmAttendees = await db
-        .select({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          image: users.image,
-        })
+      const goingUsers = await db
+        .select({ id: users.id, name: users.name, email: users.email, image: users.image })
         .from(attendees)
         .innerJoin(users, eq(attendees.userId, users.id))
-        .where(eq(attendees.filmId, film.id));
+        .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'going'`);
 
-      const isAttending = filmAttendees.some((a) => a.id === userId);
+      const interestedUsers = await db
+        .select({ id: users.id, name: users.name, email: users.email, image: users.image })
+        .from(attendees)
+        .innerJoin(users, eq(attendees.userId, users.id))
+        .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'interested'`);
+
+      const isGoing = goingUsers.some((a) => a.id === userId);
+      const isInterested = interestedUsers.some((a) => a.id === userId);
       const signedPosterUrl = await signPosterUrl(film.posterUrl);
       const allRatings = await db
         .select({ rating: filmRatings.rating, userId: filmRatings.userId })
@@ -96,10 +98,11 @@ export default async function BoardPage() {
       return {
         ...film,
         posterUrl: signedPosterUrl,
-        attendees: filmAttendees,
-        attendeeCount: filmAttendees.length,
-        isAttending,
-        canRate: isAttending && hasFilmEnded(film.date, film.endTime),
+        goingUsers,
+        interestedUsers,
+        isGoing,
+        isInterested,
+        canRate: isGoing && hasFilmEnded(film.date, film.endTime),
         myRating,
         ratingCount,
         averageRating,
