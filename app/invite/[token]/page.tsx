@@ -19,9 +19,9 @@ function formatDate(dateStr: string) {
 export default async function InvitePage({
   params,
 }: {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }) {
-  const { token } = params;
+  const { token } = await params;
 
   // Find film by invite token (public — no auth needed)
   const [film] = await db
