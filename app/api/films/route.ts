@@ -5,6 +5,7 @@ import { films, attendees, users } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { signPosterUrl } from "@/lib/s3";
+import { randomBytes } from "crypto";
 
 const filmSchema = z.object({
   title: z.string().min(1),
@@ -111,6 +112,7 @@ export async function POST(req: NextRequest) {
     .values({
       ...parsed.data,
       createdBy: userId,
+      inviteToken: randomBytes(16).toString("hex"),
     })
     .returning();
 

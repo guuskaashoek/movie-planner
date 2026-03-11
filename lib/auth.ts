@@ -105,7 +105,11 @@ export const {
       const { pathname } = request.nextUrl;
 
       // Public routes
-      if (pathname === "/" || pathname === "/api/calendar/feed.ics") {
+      if (
+        pathname === "/" ||
+        pathname === "/api/calendar/feed.ics" ||
+        pathname.startsWith("/invite")
+      ) {
         return true;
       }
 
