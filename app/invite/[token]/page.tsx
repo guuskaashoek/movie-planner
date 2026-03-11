@@ -36,19 +36,20 @@ export default async function InvitePage({
   // @ts-expect-error id is added in auth callback
   const userId: number | undefined = session?.user?.id;
 
-  const filmAttendees = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      image: users.image,
-    })
+  const goingAttendees = await db
+    .select({ id: users.id, name: users.name, email: users.email, image: users.image })
     .from(attendees)
     .innerJoin(users, eq(attendees.userId, users.id))
     .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'going'`);
 
+  const interestedAttendees = await db
+    .select({ id: users.id, name: users.name, email: users.email, image: users.image })
+    .from(attendees)
+    .innerJoin(users, eq(attendees.userId, users.id))
+    .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'interested'`);
+
   const isAlreadyAttending = userId
-    ? filmAttendees.some((a) => a.id === userId)
+    ? goingAttendees.some((a) => a.id === userId)
     : false;
 
   const posterUrl = await signPosterUrl(film.posterUrl);
@@ -142,41 +143,58 @@ export default async function InvitePage({
           )}
 
           {/* Attendees */}
-          {filmAttendees.length > 0 && (
-            <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                {filmAttendees.length}{" "}
-                {filmAttendees.length === 1 ? "person" : "people"} going
-              </p>
-              <div className="flex -space-x-2">
-                {filmAttendees.slice(0, 8).map((attendee) => (
-                  <div
-                    key={attendee.id}
-                    className="inline-block h-9 w-9 rounded-full ring-2 ring-zinc-900"
-                    title={attendee.name || attendee.email}
-                  >
-                    {attendee.image ? (
-                      <img
-                        src={attendee.image}
-                        alt=""
-                        className="h-full w-full rounded-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-xs font-bold text-white">
-                        {(attendee.name?.[0] || attendee.email[0]).toUpperCase()}
+          {(goingAttendees.length > 0 || interestedAttendees.length > 0) && (
+            <div className="space-y-4">
+              {goingAttendees.length > 0 && (
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    {goingAttendees.length} {goingAttendees.length === 1 ? "person" : "people"} going
+                  </p>
+                  <div className="flex -space-x-2">
+                    {goingAttendees.slice(0, 8).map((a) => (
+                      <div key={a.id} className="inline-block h-9 w-9 rounded-full ring-2 ring-zinc-900" title={a.name || a.email}>
+                        {a.image ? (
+                          <img src={a.image} alt="" className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-xs font-bold text-white">
+                            {(a.name?.[0] || a.email[0]).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {goingAttendees.length > 8 && (
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-900">
+                        <span className="text-[10px] font-medium text-white">+{goingAttendees.length - 8}</span>
                       </div>
                     )}
                   </div>
-                ))}
-                {filmAttendees.length > 8 && (
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-900">
-                    <span className="text-[10px] font-medium text-white">
-                      +{filmAttendees.length - 8}
-                    </span>
+                </div>
+              )}
+              {interestedAttendees.length > 0 && (
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                    {interestedAttendees.length} {interestedAttendees.length === 1 ? "person" : "people"} interested
+                  </p>
+                  <div className="flex -space-x-2">
+                    {interestedAttendees.slice(0, 8).map((a) => (
+                      <div key={a.id} className="inline-block h-9 w-9 rounded-full ring-2 ring-zinc-900" title={a.name || a.email}>
+                        {a.image ? (
+                          <img src={a.image} alt="" className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-xs font-bold text-white">
+                            {(a.name?.[0] || a.email[0]).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {interestedAttendees.length > 8 && (
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-900">
+                        <span className="text-[10px] font-medium text-white">+{interestedAttendees.length - 8}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
