@@ -55,6 +55,15 @@ export default async function BoardPage() {
     .from(films)
     .orderBy(films.date, films.startTime);
 
+  // Auto-generate invite tokens for films that don't have one
+  for (const film of allFilms) {
+    if (!film.inviteToken) {
+      const token = randomBytes(16).toString("hex");
+      await db.update(films).set({ inviteToken: token }).where(eq(films.id, film.id));
+      film.inviteToken = token;
+    }
+  }
+
   // For each film, get attendee information
   const filmsWithAttendees = await Promise.all(
     allFilms.map(async (film) => {
@@ -143,6 +152,7 @@ export default async function BoardPage() {
           films: filmsWithAttendees,
           hasMore: false,
           currentUserEmail: session.user.email,
+          baseUrl,
         }}
       />
     </div>

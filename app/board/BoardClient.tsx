@@ -20,6 +20,7 @@ type Film = {
   endTime: string | null;
   posterUrl: string | null;
   formats: string | null;
+  inviteToken: string | null;
   attendees: Attendee[];
   attendeeCount: number;
   isAttending: boolean;
@@ -32,8 +33,9 @@ type Film = {
 
 type ApiResponse = {
   films: Film[];
-  hasMore?: boolean; // Optional to maintain compat if needed, or just remove it
+  hasMore?: boolean;
   currentUserEmail?: string | null;
+  baseUrl?: string;
 };
 
 export function BoardClient({ initial }: { initial: ApiResponse }) {
@@ -42,6 +44,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   const [showPast, setShowPast] = useState(false);
   const [showPastReleases, setShowPastReleases] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
+  const [copiedInviteId, setCopiedInviteId] = useState<number | null>(null);
 
   function hasFilmEnded(date: string | null, endTime: string | null) {
     if (!date) return false;
@@ -92,6 +95,16 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
         })
       );
     }
+  }
+
+  function copyInviteLink(film: Film) {
+    if (!film.inviteToken) return;
+    const base = initial.baseUrl ?? window.location.origin;
+    const url = `${base}/invite/${film.inviteToken}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedInviteId(film.id);
+      setTimeout(() => setCopiedInviteId(null), 2000);
+    });
   }
 
   async function handleRateFilm(filmId: number, rating: number) {
@@ -305,15 +318,40 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                     ) : (
                       <span className="text-xs text-zinc-500 italic">No one attending yet</span>
                     )}
-                    <button
-                      onClick={() => toggleAttending(film.id, film.isAttending)}
-                      className={`group/btn relative flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${film.isAttending
-                        ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                        : "bg-white text-zinc-950 shadow-sm hover:bg-zinc-200"
-                        }`}
-                    >
-                      <span>{film.isAttending ? "I'm going" : "Join Screening"}</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleAttending(film.id, film.isAttending)}
+                        className={`group/btn relative flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${film.isAttending
+                          ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                          : "bg-white text-zinc-950 shadow-sm hover:bg-zinc-200"
+                          }`}
+                      >
+                        <span>{film.isAttending ? "I'm going" : "Join Screening"}</span>
+                      </button>
+                      {film.inviteToken && (
+                        <button
+                          onClick={() => copyInviteLink(film)}
+                          title="Copy invite link"
+                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                            copiedInviteId === film.id
+                              ? "border-green-500/50 bg-green-500/10 text-green-400"
+                              : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                          }`}
+                        >
+                          {copiedInviteId === film.id ? (
+                            <>
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                              Invite
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
                     </div>
                   </div>
                 </div>

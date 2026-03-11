@@ -25,6 +25,7 @@ export const films = sqliteTable("films", {
   endTime: text("end_time"), // HH:mm
   posterUrl: text("poster_url"),
   formats: text("formats"), // Comma separated: IMAX,4DX,3D,etc.
+  inviteToken: text("invite_token").unique(),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(strftime('%s','now') * 1000)`),
