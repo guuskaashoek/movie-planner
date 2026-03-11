@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { auth, signIn } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { films, attendees, users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
 import { InviteJoinButton } from "./InviteJoinButton";
 
@@ -45,7 +45,7 @@ export default async function InvitePage({
     })
     .from(attendees)
     .innerJoin(users, eq(attendees.userId, users.id))
-    .where(eq(attendees.filmId, film.id));
+    .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'going'`);
 
   const isAlreadyAttending = userId
     ? filmAttendees.some((a) => a.id === userId)

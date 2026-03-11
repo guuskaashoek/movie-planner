@@ -11,11 +11,13 @@ try { sqlite.prepare("ALTER TABLE attendees ADD COLUMN type TEXT NOT NULL DEFAUL
 sqlite.prepare("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)").run();
 
 // One-time: all legacy attendees become 'interested' (before screening-specific attendance was introduced)
-const m1 = sqlite.prepare("SELECT name FROM _migrations WHERE name = 'seed_attendees_as_interested'").get();
-if (!m1) {
-  sqlite.prepare("UPDATE attendees SET type = 'interested'").run();
-  sqlite.prepare("INSERT INTO _migrations (name, applied_at) VALUES ('seed_attendees_as_interested', ?)").run(Date.now());
-}
+try {
+  const m1 = sqlite.prepare("SELECT name FROM _migrations WHERE name = 'seed_attendees_as_interested'").get();
+  if (!m1) {
+    sqlite.prepare("UPDATE attendees SET type = 'interested'").run();
+    sqlite.prepare("INSERT INTO _migrations (name, applied_at) VALUES ('seed_attendees_as_interested', ?)").run(Date.now());
+  }
+} catch {}
 
 export const db = drizzle(sqlite);
 
