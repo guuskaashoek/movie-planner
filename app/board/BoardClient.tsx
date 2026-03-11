@@ -296,69 +296,116 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                       </div>
                     )}
 
-                    <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-                    {/* Attendees logic similar to before */}
-                    {film.attendees.length > 0 ? (
-                      <div className="flex -space-x-2 overflow-hidden">
-                        {film.attendees.slice(0, 5).map((attendee) => (
-                          <div key={attendee.id} className="relative inline-block h-8 w-8 rounded-full ring-2 ring-zinc-950" title={attendee.name || attendee.email}>
-                            {attendee.image ? (
-                              <img src={attendee.image} alt="" className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-[10px] font-bold text-white">{attendee.name?.[0] || attendee.email[0]}</div>
-                            )}
-                          </div>
-                        ))}
-                        {film.attendees.length > 5 && (
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-950">
-                            <span className="text-[10px] font-medium text-white">+{film.attendees.length - 5}</span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-zinc-500 italic">No one attending yet</span>
-                    )}
-                    <div className="flex items-center gap-2">
-                      {film.date ? (
+                    {/* No screening date: interest row */}
+                    {!film.date && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {film.attendees.length > 0 ? (
+                            <>
+                              <div className="flex -space-x-2 overflow-hidden">
+                                {film.attendees.slice(0, 5).map((attendee) => (
+                                  <div key={attendee.id} className="inline-block h-7 w-7 rounded-full ring-2 ring-zinc-950" title={attendee.name || attendee.email}>
+                                    {attendee.image ? (
+                                      <img src={attendee.image} alt="" className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
+                                    ) : (
+                                      <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-[10px] font-bold text-white">{attendee.name?.[0] || attendee.email[0]}</div>
+                                    )}
+                                  </div>
+                                ))}
+                                {film.attendees.length > 5 && (
+                                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-950">
+                                    <span className="text-[10px] font-medium text-white">+{film.attendees.length - 5}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs text-zinc-500">{film.attendees.length} interested</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-zinc-600 italic">No one interested yet</span>
+                          )}
+                        </div>
                         <button
                           onClick={() => toggleAttending(film.id, film.isAttending)}
-                          className={`group/btn relative flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${film.isAttending
-                            ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                            : "bg-white text-zinc-950 shadow-sm hover:bg-zinc-200"
-                            }`}
-                        >
-                          <span>{film.isAttending ? "I'm going" : "Join Screening"}</span>
-                        </button>
-                      ) : (
-                        <span className="rounded-lg border border-zinc-800 bg-zinc-900/50 px-4 py-2 text-xs text-zinc-500">
-                          No screening planned
-                        </span>
-                      )}
-                      {film.inviteToken && (
-                        <button
-                          onClick={() => copyInviteLink(film)}
-                          title="Copy invite link"
-                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
-                            copiedInviteId === film.id
-                              ? "border-green-500/50 bg-green-500/10 text-green-400"
+                          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                            film.isAttending
+                              ? "border-zinc-600 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                               : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
                           }`}
                         >
-                          {copiedInviteId === film.id ? (
+                          {film.isAttending ? (
                             <>
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                              Copied!
+                              <svg className="h-3 w-3 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
+                              Interested
                             </>
                           ) : (
                             <>
-                              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                              Invite
+                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
+                              I'm interested
                             </>
                           )}
                         </button>
-                      )}
-                    </div>
-                    </div>
+                      </div>
+                    )}
+
+                    {/* Screening date: join + invite row */}
+                    {film.date && (
+                      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+                        {film.attendees.length > 0 ? (
+                          <div className="flex -space-x-2 overflow-hidden">
+                            {film.attendees.slice(0, 5).map((attendee) => (
+                              <div key={attendee.id} className="relative inline-block h-8 w-8 rounded-full ring-2 ring-zinc-950" title={attendee.name || attendee.email}>
+                                {attendee.image ? (
+                                  <img src={attendee.image} alt="" className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-[10px] font-bold text-white">{attendee.name?.[0] || attendee.email[0]}</div>
+                                )}
+                              </div>
+                            ))}
+                            {film.attendees.length > 5 && (
+                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-950">
+                                <span className="text-[10px] font-medium text-white">+{film.attendees.length - 5}</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-zinc-500 italic">No one going yet</span>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleAttending(film.id, film.isAttending)}
+                            className={`group/btn relative flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${film.isAttending
+                              ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
+                              : "bg-white text-zinc-950 shadow-sm hover:bg-zinc-200"
+                              }`}
+                          >
+                            <span>{film.isAttending ? "I'm going" : "Join Screening"}</span>
+                          </button>
+                          {film.inviteToken && (
+                            <button
+                              onClick={() => copyInviteLink(film)}
+                              title="Copy invite link"
+                              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                                copiedInviteId === film.id
+                                  ? "border-green-500/50 bg-green-500/10 text-green-400"
+                                  : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                              }`}
+                            >
+                              {copiedInviteId === film.id ? (
+                                <>
+                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                                  Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
+                                  Invite
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

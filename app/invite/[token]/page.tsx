@@ -183,9 +183,10 @@ export default async function InvitePage({
           {/* CTA */}
           <div className="border-t border-zinc-800 pt-2">
             {!film.date ? (
-              <p className="text-center text-sm text-zinc-500 italic">
-                No screening date planned yet — check back later.
-              </p>
+              <div className="space-y-2 text-center">
+                <p className="text-sm text-zinc-400">No screening planned yet</p>
+                <p className="text-xs text-zinc-600">Sign in on the board to mark yourself as interested</p>
+              </div>
             ) : isAlreadyAttending ? (
               <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-5 py-4">
                 <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-green-500/20 text-green-400">
