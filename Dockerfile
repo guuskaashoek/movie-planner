@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install build dependencies for native modules
-RUN apk add --no-cache python3 make g++ git curl unzip
+RUN apk add --no-cache python3 make g++ git curl unzip bash
 
 # Install bun
 RUN curl -fsSL https://bun.sh/install | bash
