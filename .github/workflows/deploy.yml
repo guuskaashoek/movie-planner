@@ -34,3 +34,5 @@ jobs:
           push: true
           tags: ghcr.io/guuskaashoek/jet-project-movie-planner:latest
           platforms: linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
