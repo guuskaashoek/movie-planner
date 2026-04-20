@@ -20,6 +20,14 @@ RUN bun install || npm install
 # Copy source code
 COPY . .
 
+
+ENV DATABASE_URL="file:./local.db"
+ENV NEXTAUTH_SECRET="dummy_secret_for_build_purposes_only"
+ENV NEXTAUTH_URL="http://localhost:3000"
+
+
+
+
 # Build Next.js
 RUN bun run build || npm run build
 
