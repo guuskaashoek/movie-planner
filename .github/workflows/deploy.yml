@@ -34,3 +34,7 @@ jobs:
           platforms: linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trigger GuusLab Jet Deployment
+        run: |
+          curl -X POST -H "Content-Type: application/json" -d '{"projectId":"movie-planner","token":"d3c8f527f0bf8e42c3f324f76abac1fd3b2e32901646ddf068560205fcacdbc7"}' https://jet.guuslab.com/webhook/gh-action-deploy
