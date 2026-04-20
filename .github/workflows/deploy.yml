@@ -10,12 +10,10 @@ permissions:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    # Use native ARM64 runner instead of x86 with QEMU emulation!
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
