@@ -28,5 +28,5 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/jet-project-movie-planner:latest
+          tags: ghcr.io/guuskaashoek/jet-project-movie-planner:latest
           platforms: linux/arm64
