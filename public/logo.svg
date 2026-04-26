@@ -1,0 +1,22 @@
+<svg viewBox="0 0 80 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Outer film strip body -->
+  <rect x="1" y="1" width="78" height="54" rx="8" fill="white"/>
+
+  <!-- Left perforation strip (darker area) -->
+  <rect x="1" y="1" width="18" height="54" rx="8" fill="#d4d4d8"/>
+  <rect x="11" y="1" width="8" height="54" fill="#d4d4d8"/>
+
+  <!-- Right perforation strip -->
+  <rect x="61" y="1" width="18" height="54" rx="8" fill="#d4d4d8"/>
+  <rect x="61" y="1" width="8" height="54" fill="#d4d4d8"/>
+
+  <!-- Left perforation holes -->
+  <rect x="3" y="10" width="14" height="9" rx="2.5" fill="white"/>
+  <rect x="3" y="24" width="14" height="9" rx="2.5" fill="white"/>
+  <rect x="3" y="37" width="14" height="9" rx="2.5" fill="white"/>
+
+  <!-- Right perforation holes -->
+  <rect x="63" y="10" width="14" height="9" rx="2.5" fill="white"/>
+  <rect x="63" y="24" width="14" height="9" rx="2.5" fill="white"/>
+  <rect x="63" y="37" width="14" height="9" rx="2.5" fill="white"/>
+</svg>
