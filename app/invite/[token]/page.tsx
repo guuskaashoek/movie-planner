@@ -5,6 +5,8 @@ import { films, attendees, users } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
 import { InviteJoinButton } from "./InviteJoinButton";
+import { headers } from "next/headers";
+import type { Metadata } from "next";
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
@@ -14,6 +16,58 @@ function formatDate(dateStr: string) {
     month: "long",
     day: "numeric",
   });
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ token: string }>;
+}): Promise<Metadata> {
+  const { token } = await params;
+
+  const [film] = await db
+    .select()
+    .from(films)
+    .where(eq(films.inviteToken, token))
+    .limit(1);
+
+  if (!film) return {};
+
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "localhost:3000";
+  const proto = headersList.get("x-forwarded-proto") ?? "https";
+  const baseUrl = `${proto}://${host}`;
+
+  const formats = film.formats ? film.formats.split(",") : [];
+  const description = [
+    film.date ? `Screening on ${formatDate(film.date)}` : null,
+    formats.length > 0 ? formats.join(" · ") : null,
+    film.description,
+  ]
+    .filter(Boolean)
+    .join(" — ") || "You're invited to a film screening";
+
+  const ogImageUrl = film.posterUrl?.includes("wasabisys.com")
+    ? `${baseUrl}/api/og-image/${token}`
+    : (film.posterUrl ?? undefined);
+
+  return {
+    title: film.title,
+    description,
+    openGraph: {
+      title: film.title,
+      description,
+      images: ogImageUrl ? [{ url: ogImageUrl }] : [],
+      type: "website",
+      url: `${baseUrl}/invite/${token}`,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: film.title,
+      description,
+      images: ogImageUrl ? [ogImageUrl] : [],
+    },
+  };
 }
 
 export default async function InvitePage({
