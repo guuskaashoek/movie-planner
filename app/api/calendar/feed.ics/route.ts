@@ -130,6 +130,22 @@ export async function GET(req: NextRequest) {
       summary: film.title,
       description: description || undefined,
     });
+
+    // If both special attendees are going, add a "don't forget grapes" reminder 30 min before
+    const GRAPE_REMINDER_EMAILS = ["sherlockgnomezz@gmail.com", "lordofthegalaxyman@gmail.com"];
+    const attendeeEmails = filmAttendees.map((a) => a.email?.toLowerCase() ?? "");
+    const bothPresent = GRAPE_REMINDER_EMAILS.every((e) => attendeeEmails.includes(e));
+
+    if (bothPresent && !allDay) {
+      const reminderStart = new Date(start.getTime() - 30 * 60 * 1000);
+      const reminderEnd = new Date(start.getTime());
+      calendar.createEvent({
+        start: reminderStart,
+        end: reminderEnd,
+        summary: "Niet de druiven vergeten!",
+        description: `Reminder voor ${film.title}: vergeet de druiven niet mee te nemen!`,
+      });
+    }
   }
 
   const body = calendar.toString();
