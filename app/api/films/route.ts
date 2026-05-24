@@ -6,6 +6,7 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { signPosterUrl } from "@/lib/s3";
 import { randomBytes } from "crypto";
+import { publishLiveEvent } from "@/lib/live";
 
 const filmSchema = z.object({
   title: z.string().min(1),
@@ -122,6 +123,7 @@ export async function POST(req: NextRequest) {
     userId,
   });
 
+  publishLiveEvent({ topic: "film", filmId: inserted.id });
   return NextResponse.json({ film: inserted }, { status: 201 });
 }
 

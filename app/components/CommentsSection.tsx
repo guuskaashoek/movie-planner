@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export type FilmComment = {
   id: number;
@@ -56,6 +56,10 @@ export function CommentsSection({
   const [body, setBody] = useState("");
   const [posting, setPosting] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setComments(initialComments);
+  }, [initialComments]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
