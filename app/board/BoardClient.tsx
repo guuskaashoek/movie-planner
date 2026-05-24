@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PollVoter, type Poll } from "@/app/components/PollVoter";
@@ -51,6 +51,11 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   const [isFixing, setIsFixing] = useState(false);
   const [copiedInviteId, setCopiedInviteId] = useState<number | null>(null);
   const liveRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilms(initial.films);
+  }, [initial.films]);
   const refreshLive = useCallback(() => {
     if (liveRefreshTimeout.current) return;
     liveRefreshTimeout.current = setTimeout(() => {
