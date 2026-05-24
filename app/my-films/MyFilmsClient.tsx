@@ -359,6 +359,11 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [showPastManaged, setShowPastManaged] = useState(false);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFilms(initial.films);
+  }, [initial.films]);
+
   type PollDraft = { date: string; startTime: string; endTime: string; id?: number };
 
   type FormState = {
