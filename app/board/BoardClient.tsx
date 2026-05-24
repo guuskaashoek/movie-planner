@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PollVoter, type Poll } from "@/app/components/PollVoter";
@@ -59,11 +59,6 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
     }, 350);
   }, [router]);
   useLiveUpdates(refreshLive);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setFilms(initial.films);
-  }, [initial.films]);
 
   function hasFilmEnded(date: string | null, endTime: string | null) {
     if (!date) return false;
