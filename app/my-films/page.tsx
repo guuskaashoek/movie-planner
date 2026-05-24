@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { MyFilmsClient } from "./MyFilmsClient";
 import { db } from "@/lib/db/client";
-import { films, attendees, users } from "@/lib/db/schema";
+import { films, attendees, users, pollOptions } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
 
@@ -55,6 +55,7 @@ export default async function MyFilmsPage() {
       formats: films.formats,
       createdBy: films.createdBy,
       createdAt: films.createdAt,
+      allowMultiVote: films.allowMultiVote,
     })
     .from(films)
     .orderBy(films.date, films.startTime);
@@ -87,6 +88,17 @@ export default async function MyFilmsPage() {
       const isAttending = filmAttendees.some((a) => a.id === userId);
       const signedPosterUrl = await signPosterUrl(film.posterUrl);
 
+      const options = await db
+        .select({
+          id: pollOptions.id,
+          date: pollOptions.date,
+          startTime: pollOptions.startTime,
+          endTime: pollOptions.endTime,
+        })
+        .from(pollOptions)
+        .where(eq(pollOptions.filmId, film.id))
+        .orderBy(pollOptions.sortOrder, pollOptions.id);
+
       return {
         ...film,
         posterUrl: signedPosterUrl,
@@ -94,6 +106,7 @@ export default async function MyFilmsPage() {
         attendees: filmAttendees,
         attendeeCount: filmAttendees.length,
         isAttending,
+        pollOptions: options,
       };
     })
   );

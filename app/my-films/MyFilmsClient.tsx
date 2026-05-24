@@ -28,6 +28,15 @@ type Film = {
   attendees: Attendee[];
   attendeeCount: number;
   isAttending: boolean;
+  allowMultiVote: boolean;
+  pollOptions: PollOptionDraft[];
+};
+
+type PollOptionDraft = {
+  id?: number;
+  date: string;
+  startTime: string | null;
+  endTime: string | null;
 };
 
 type InitialData = {
@@ -350,6 +359,8 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
   const [isEditing, setIsEditing] = useState<number | null>(null);
   const [showPastManaged, setShowPastManaged] = useState(false);
 
+  type PollDraft = { date: string; startTime: string; endTime: string; id?: number };
+
   type FormState = {
     title: string;
     date: string;
@@ -359,6 +370,9 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     posterFile: File | null;
     currentPosterUrl: string | null;
     selectedFormats: string[];
+    pollEnabled: boolean;
+    allowMultiVote: boolean;
+    pollOptions: PollDraft[];
   };
 
   const initialFormState: FormState = {
@@ -370,6 +384,9 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     posterFile: null,
     currentPosterUrl: null,
     selectedFormats: [],
+    pollEnabled: false,
+    allowMultiVote: false,
+    pollOptions: [],
   };
 
   const [form, setForm] = useState<FormState>(initialFormState);
@@ -400,6 +417,27 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
       const bKey = b.date ?? b.releaseDate ?? "9999";
       return aKey.localeCompare(bKey); // soonest first, TBA last
     });
+
+  function addPollOption() {
+    setForm((prev) => ({
+      ...prev,
+      pollOptions: [...prev.pollOptions, { date: "", startTime: "", endTime: "" }],
+    }));
+  }
+
+  function updatePollOption(index: number, patch: Partial<PollDraft>) {
+    setForm((prev) => ({
+      ...prev,
+      pollOptions: prev.pollOptions.map((o, i) => (i === index ? { ...o, ...patch } : o)),
+    }));
+  }
+
+  function removePollOption(index: number) {
+    setForm((prev) => ({
+      ...prev,
+      pollOptions: prev.pollOptions.filter((_, i) => i !== index),
+    }));
+  }
 
   function toggleFormat(fmt: string) {
     setForm((prev) => {
@@ -438,6 +476,12 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    if (form.pollEnabled && form.pollOptions.filter((o) => o.date).length === 0) {
+      alert("Add at least one date option to your poll.");
+      return;
+    }
+
     setLoading(true);
     try {
       let posterUrl = form.currentPosterUrl;
@@ -460,18 +504,30 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
         posterChanged = true;
       }
 
+      // A poll replaces the fixed screening date/time.
+      const pollOptionsToSave = form.pollEnabled
+        ? form.pollOptions.filter((o) => o.date)
+        : [];
+
+      let filmId: number;
+
       if (isEditing) {
         // UPDATE existing film - Only send changed fields
         const body: any = {};
 
         if (isModified('title')) body.title = form.title;
-        if (isModified('date')) body.date = form.date || null;
         if (isModified('releaseDate')) body.releaseDate = form.releaseDate || null;
 
-        // Time depends on date, but if only time changed, we update it.
-        // If date changed, we should probably send time too.
-        if (isModified('startTime') || isModified('date')) body.startTime = form.date ? (form.startTime || null) : null;
-        if (isModified('endTime') || isModified('date')) body.endTime = form.date ? (form.endTime || null) : null;
+        if (form.pollEnabled) {
+          // Poll drives scheduling, so clear any fixed date/time.
+          body.date = null;
+          body.startTime = null;
+          body.endTime = null;
+        } else {
+          if (isModified('date')) body.date = form.date || null;
+          if (isModified('startTime') || isModified('date')) body.startTime = form.date ? (form.startTime || null) : null;
+          if (isModified('endTime') || isModified('date')) body.endTime = form.date ? (form.endTime || null) : null;
+        }
 
         if (isModified('selectedFormats')) {
           body.formats = form.selectedFormats.length > 0 ? form.selectedFormats.join(",") : null;
@@ -481,28 +537,23 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           body.posterUrl = posterUrl ?? null;
         }
 
-        if (Object.keys(body).length === 0) {
-          // No changes
-          setLoading(false);
-          alert("No changes to save.");
-          return;
+        if (Object.keys(body).length > 0) {
+          const res = await fetch(`/api/films/${isEditing}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) throw new Error("Update failed");
         }
-
-        const res = await fetch(`/api/films/${isEditing}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error("Update failed");
-
+        filmId = isEditing;
       } else {
         // CREATE new film - Send all fields
         const body = {
           title: form.title,
-          date: form.date || null,
+          date: form.pollEnabled ? null : form.date || null,
           releaseDate: form.releaseDate || null,
-          startTime: form.date ? (form.startTime || null) : null,
-          endTime: form.date ? (form.endTime || null) : null,
+          startTime: form.pollEnabled ? null : form.date ? (form.startTime || null) : null,
+          endTime: form.pollEnabled ? null : form.date ? (form.endTime || null) : null,
           posterUrl: posterUrl ?? null,
           formats: form.selectedFormats.length > 0 ? form.selectedFormats.join(",") : null,
         };
@@ -513,6 +564,28 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error("Create failed");
+        const created = (await res.json()) as { film: { id: number } };
+        filmId = created.film.id;
+      }
+
+      // Save (or clear) the poll. Sending the existing option ids preserves
+      // their votes; omitted options are removed and start fresh if re-added.
+      const hadPoll = originalForm.pollOptions.length > 0;
+      if (form.pollEnabled || hadPoll) {
+        const pollRes = await fetch(`/api/films/${filmId}/poll`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            allowMultiVote: form.allowMultiVote,
+            options: pollOptionsToSave.map((o) => ({
+              id: o.id,
+              date: o.date,
+              startTime: o.startTime || null,
+              endTime: o.endTime || null,
+            })),
+          }),
+        });
+        if (!pollRes.ok) throw new Error("Poll save failed");
       }
 
       router.refresh();
@@ -536,7 +609,13 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
 
   function handleEdit(film: Film) {
     setIsEditing(film.id);
-    const newFormState = {
+    const draftOptions: PollDraft[] = (film.pollOptions ?? []).map((o) => ({
+      id: o.id,
+      date: o.date,
+      startTime: o.startTime || "",
+      endTime: o.endTime || "",
+    }));
+    const newFormState: FormState = {
       title: film.title,
       date: film.date || "",
       releaseDate: film.releaseDate || "",
@@ -545,6 +624,9 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
       posterFile: null,
       currentPosterUrl: film.posterUrl,
       selectedFormats: film.formats ? film.formats.split(",") : [],
+      pollEnabled: draftOptions.length > 0,
+      allowMultiVote: film.allowMultiVote,
+      pollOptions: draftOptions,
     };
     setForm(newFormState);
     setOriginalForm(newFormState);
@@ -615,15 +697,17 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">
-            <div className={isEditing && isModified("date") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
-              <CustomDatePicker
-                label="Screening Date"
-                value={form.date}
-                onChange={(date) => setForm({ ...form, date })}
-                optional
-                description="When are we watching?"
-              />
-            </div>
+            {!form.pollEnabled && (
+              <div className={isEditing && isModified("date") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
+                <CustomDatePicker
+                  label="Screening Date"
+                  value={form.date}
+                  onChange={(date) => setForm({ ...form, date })}
+                  optional
+                  description="When are we watching?"
+                />
+              </div>
+            )}
 
             <div className={isEditing && isModified("releaseDate") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
               <CustomDatePicker
@@ -636,8 +720,8 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
             </div>
           </div>
 
-          {/* Time fields - ONLY show if a screening date is selected */}
-          {form.date && (
+          {/* Time fields - ONLY show if a screening date is selected and no poll */}
+          {!form.pollEnabled && form.date && (
             <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4 transition-all animate-in fade-in slide-in-from-top-4">
               <h4 className="mb-3 text-xs font-semibold uppercase text-zinc-500">Screening Time</h4>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -658,6 +742,118 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
               </div>
             </div>
           )}
+
+          {/* --- POLL SECTION --- */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-zinc-200">Let people vote on the time</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Add several date/time options. The most-voted one gets scheduled and synced to calendars.
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.pollEnabled}
+                onClick={() => setForm((prev) => ({
+                  ...prev,
+                  pollEnabled: !prev.pollEnabled,
+                  pollOptions: !prev.pollEnabled && prev.pollOptions.length === 0
+                    ? [{ date: "", startTime: "", endTime: "" }]
+                    : prev.pollOptions,
+                }))}
+                className={classNames(
+                  "relative inline-flex h-6 w-11 flex-none items-center rounded-full transition-colors",
+                  form.pollEnabled ? "bg-blue-600" : "bg-zinc-700"
+                )}
+              >
+                <span
+                  className={classNames(
+                    "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                    form.pollEnabled ? "translate-x-6" : "translate-x-1"
+                  )}
+                />
+              </button>
+            </div>
+
+            {form.pollEnabled && (
+              <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                {/* Single vs multiple choice */}
+                <div className="flex gap-2">
+                  {[
+                    { value: false, label: "Pick one", hint: "Single choice" },
+                    { value: true, label: "Pick any", hint: "Multiple choice" },
+                  ].map((opt) => (
+                    <button
+                      key={String(opt.value)}
+                      type="button"
+                      onClick={() => setForm({ ...form, allowMultiVote: opt.value })}
+                      className={classNames(
+                        "flex-1 rounded-lg border px-3 py-2 text-center transition-all",
+                        form.allowMultiVote === opt.value
+                          ? "border-blue-500 bg-blue-600/15 text-blue-300"
+                          : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500"
+                      )}
+                    >
+                      <span className="block text-sm font-semibold">{opt.label}</span>
+                      <span className="block text-[10px] uppercase tracking-wider opacity-70">{opt.hint}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Option rows */}
+                <div className="space-y-3">
+                  {form.pollOptions.map((option, i) => (
+                    <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
+                          Option {i + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removePollOption(i)}
+                          className="rounded-md px-2 py-0.5 text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div className="space-y-3">
+                        <CustomDatePicker
+                          label="Date"
+                          value={option.date}
+                          onChange={(date) => updatePollOption(i, { date })}
+                        />
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <CustomTimePicker
+                            label="Start Time"
+                            value={option.startTime}
+                            onChange={(time) => updatePollOption(i, { startTime: time })}
+                          />
+                          <CustomTimePicker
+                            label="End Time"
+                            value={option.endTime}
+                            onChange={(time) => updatePollOption(i, { endTime: time })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addPollOption}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 bg-zinc-900/40 px-4 py-2.5 text-sm font-semibold text-zinc-400 transition-all hover:border-zinc-500 hover:text-zinc-200"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add another time option
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="space-y-2">
             <label className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-zinc-500">

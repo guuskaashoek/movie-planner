@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PollVoter, type Poll } from "@/app/components/PollVoter";
 
 type Attendee = {
   id: number;
@@ -29,6 +30,7 @@ type Film = {
   myRating: number | null;
   averageRating: number | null;
   ratingCount: number;
+  poll: Poll | null;
 };
 
 
@@ -362,8 +364,27 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                       </button>
                     </div>
 
+                    {/* Poll: vote on a screening time */}
+                    {film.poll && (
+                      <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
+                        <PollVoter filmId={film.id} poll={film.poll} canVote compact />
+                        {film.inviteToken && (
+                          <button
+                            onClick={() => copyInviteLink(film)}
+                            className={`flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                              copiedInviteId === film.id
+                                ? "border-green-500/50 bg-green-500/10 text-green-400"
+                                : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
+                            }`}
+                          >
+                            {copiedInviteId === film.id ? "Invite link copied!" : "Copy invite link to share the poll"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {/* Screening date: going + invite row */}
-                    {film.date && (
+                    {!film.poll && film.date && (
                       <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                         {film.goingUsers.length > 0 ? (
                           <div className="flex -space-x-2 overflow-hidden">

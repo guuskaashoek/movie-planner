@@ -5,6 +5,8 @@ import { films, attendees, users } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
 import { InviteJoinButton } from "./InviteJoinButton";
+import { PollVoter } from "@/app/components/PollVoter";
+import { getPollData } from "@/lib/poll";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 
@@ -108,6 +110,7 @@ export default async function InvitePage({
 
   const posterUrl = await signPosterUrl(film.posterUrl);
   const formats = film.formats ? film.formats.split(",") : [];
+  const poll = await getPollData(film.id, film.allowMultiVote, userId ?? null);
 
   return (
     <div className="mx-auto max-w-lg py-8">
@@ -151,8 +154,15 @@ export default async function InvitePage({
             )}
           </div>
 
+          {/* Poll */}
+          {poll && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+              <PollVoter filmId={film.id} poll={poll} canVote={!!userId} />
+            </div>
+          )}
+
           {/* Date / Time */}
-          {(film.date || film.releaseDate) && (
+          {!poll && (film.date || film.releaseDate) && (
             <div className="flex items-start gap-3 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
               <svg
                 className="mt-0.5 h-4 w-4 flex-none text-zinc-500"
@@ -253,8 +263,30 @@ export default async function InvitePage({
           )}
 
           {/* CTA */}
+          {!(poll && userId) && (
           <div className="border-t border-zinc-800 pt-2">
-            {!film.date ? (
+            {poll ? (
+                <div className="space-y-3">
+                  <p className="text-center text-sm text-zinc-400">
+                    Sign in to vote on a screening time
+                  </p>
+                  <form
+                    action={async () => {
+                      "use server";
+                      await signIn("google", {
+                        redirectTo: `/invite/${token}`,
+                      });
+                    }}
+                  >
+                    <button
+                      type="submit"
+                      className="w-full rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-zinc-950 shadow-lg transition-all hover:bg-zinc-100"
+                    >
+                      Sign in with Google to Vote
+                    </button>
+                  </form>
+                </div>
+            ) : !film.date ? (
               <div className="space-y-2 text-center">
                 <p className="text-sm text-zinc-400">No screening planned yet</p>
                 <p className="text-xs text-zinc-600">Sign in on the board to mark yourself as interested</p>
@@ -296,6 +328,7 @@ export default async function InvitePage({
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
