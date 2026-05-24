@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db/client";
-import { films, attendees, users, boardSettings } from "@/lib/db/schema";
+import { films, attendees, users, boardSettings, pollOptions, pollVotes } from "@/lib/db/schema";
 import ical from "ical-generator";
 import { eq, inArray } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
+import { getPollData } from "@/lib/poll";
 
 export async function GET(req: NextRequest) {
   // Get user's share ID from query params
@@ -24,48 +25,82 @@ export async function GET(req: NextRequest) {
     return new Response("Invalid share ID", { status: 404 });
   }
 
-  // Get films the user is attending
-  const userAttendees = await db
-    .select({
-      filmId: attendees.filmId,
-    })
-    .from(attendees)
-    .where(eq(attendees.userId, userSettings.userId));
+  const calendar = ical({
+    name: "My Films",
+    timezone: "Europe/Amsterdam",
+  });
 
-  const filmIds = userAttendees.map((a) => a.filmId);
-
-  if (filmIds.length === 0) {
-    // Return empty calendar
-    const calendar = ical({
-      name: "My Films",
-      timezone: "Europe/Amsterdam",
-    });
-
-    return new Response(calendar.toString(), {
+  const emptyResponse = () =>
+    new Response(calendar.toString(), {
       status: 200,
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
         "Content-Disposition": 'attachment; filename="my-films.ics"',
       },
     });
+
+  // Films the user is attending (non-poll "going")
+  const userAttendees = await db
+    .select({ filmId: attendees.filmId })
+    .from(attendees)
+    .where(eq(attendees.userId, userSettings.userId));
+
+  // Films the user has voted on a poll for
+  const userPollFilms = await db
+    .select({ filmId: pollOptions.filmId })
+    .from(pollVotes)
+    .innerJoin(pollOptions, eq(pollVotes.optionId, pollOptions.id))
+    .where(eq(pollVotes.userId, userSettings.userId));
+
+  const filmIds = Array.from(
+    new Set([
+      ...userAttendees.map((a) => a.filmId),
+      ...userPollFilms.map((p) => p.filmId),
+    ])
+  );
+
+  if (filmIds.length === 0) {
+    return emptyResponse();
   }
 
-  // Get all films the user is attending
-  const userFilms = await db
-    .select()
-    .from(films)
-    .where(inArray(films.id, filmIds));
-
-  const calendar = ical({
-    name: "My Films",
-    timezone: "Europe/Amsterdam",
-  });
+  const userFilms = await db.select().from(films).where(inArray(films.id, filmIds));
+  const attendingFilmIds = new Set(userAttendees.map((a) => a.filmId));
 
   for (const film of userFilms) {
-    // Determine the event date: Screening Date > Release Date
-    const targetDateString = film.date || film.releaseDate;
+    const poll = await getPollData(film.id, film.allowMultiVote, userSettings.userId);
 
-    // If no date at all, skip
+    // Determine the effective screening date/time and who's attending.
+    let date: string | null;
+    let startTime: string | null;
+    let endTime: string | null;
+    let attendeeList: { name: string | null; email: string }[];
+
+    if (poll) {
+      // No votes yet → no scheduled time → nothing in the calendar.
+      const winner = poll.options.find((o) => o.isWinning);
+      if (!winner) continue;
+      // Only sync to people who voted for the winning slot.
+      if (!winner.votedByMe) continue;
+      date = winner.date;
+      startTime = winner.startTime;
+      endTime = winner.endTime;
+      attendeeList = winner.voters.map((v) => ({ name: v.name, email: v.email }));
+    } else {
+      // Non-poll film: only include if the user is actually attending.
+      if (!attendingFilmIds.has(film.id)) continue;
+      date = film.date;
+      startTime = film.startTime;
+      endTime = film.endTime;
+      const rows = await db
+        .select({ name: users.name, email: users.email })
+        .from(attendees)
+        .innerJoin(users, eq(attendees.userId, users.id))
+        .where(eq(attendees.filmId, film.id));
+      attendeeList = rows;
+    }
+
+    // Determine the event date: Screening/poll Date > Release Date
+    const targetDateString = date || film.releaseDate;
     if (!targetDateString) continue;
 
     const eventDate = new Date(targetDateString);
@@ -74,55 +109,36 @@ export async function GET(req: NextRequest) {
     let end: Date | null = null;
     let allDay = true;
 
-    // If we have a screening date AND a start time, make it a time-based event
-    if (film.date && film.startTime) {
+    if (date && startTime) {
       allDay = false;
-      start = new Date(`${film.date}T${film.startTime}:00`);
-
-      if (film.endTime) {
-        end = new Date(`${film.date}T${film.endTime}:00`);
+      start = new Date(`${date}T${startTime}:00`);
+      if (endTime) {
+        end = new Date(`${date}T${endTime}:00`);
       } else {
-        // Default duration 2 hours
         end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
       }
     }
 
-    // Create description with formats, release date and poster
     let description = "";
 
     if (film.formats) {
       description += `Format: ${film.formats}\n`;
     }
 
-    if (film.releaseDate && film.date !== film.releaseDate) {
+    if (film.releaseDate && date !== film.releaseDate) {
       description += `Release Date: ${film.releaseDate}\n`;
     }
 
     if (film.posterUrl) {
-      // Sign URL for 7 days (604800 seconds)
       const signedUrl = await signPosterUrl(film.posterUrl, 604800);
       description += `\nPoster: ${signedUrl}`;
     }
 
-    // Get all attendees for this film
-    const filmAttendees = await db
-      .select({
-        name: users.name,
-        email: users.email,
-      })
-      .from(attendees)
-      .innerJoin(users, eq(attendees.userId, users.id))
-      .where(eq(attendees.filmId, film.id));
-
-    const attendeeNames = filmAttendees
-      .map((a) => a.name || a.email)
-      .join(", ");
-
+    const attendeeNames = attendeeList.map((a) => a.name || a.email).join(", ");
     if (attendeeNames) {
       description += `\n\nAttending: ${attendeeNames}`;
     }
 
-    // Create event
     calendar.createEvent({
       start,
       end: end || undefined,
@@ -133,7 +149,7 @@ export async function GET(req: NextRequest) {
 
     // If both special attendees are going, add a "don't forget grapes" reminder 30 min before
     const GRAPE_REMINDER_EMAILS = ["sherlockgnomezz@gmail.com", "lordofthegalaxyman@gmail.com"];
-    const attendeeEmails = filmAttendees.map((a) => a.email?.toLowerCase() ?? "");
+    const attendeeEmails = attendeeList.map((a) => a.email?.toLowerCase() ?? "");
     const bothPresent = GRAPE_REMINDER_EMAILS.every((e) => attendeeEmails.includes(e));
 
     if (bothPresent && !allDay) {
@@ -148,9 +164,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const body = calendar.toString();
-
-  return new Response(body, {
+  return new Response(calendar.toString(), {
     status: 200,
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
@@ -158,4 +172,3 @@ export async function GET(req: NextRequest) {
     },
   });
 }
-

@@ -7,6 +7,7 @@ import { CalendarSubscription } from "./CalendarSubscription";
 import { eq, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { signPosterUrl } from "@/lib/s3";
+import { getPollData } from "@/lib/poll";
 
 function hasFilmEnded(date: string | null, endTime: string | null) {
   if (!date) return false;
@@ -79,7 +80,6 @@ export default async function BoardPage() {
         .innerJoin(users, eq(attendees.userId, users.id))
         .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'interested'`);
 
-      const isGoing = goingUsers.some((a) => a.id === userId);
       const isInterested = interestedUsers.some((a) => a.id === userId);
       const signedPosterUrl = await signPosterUrl(film.posterUrl);
       const allRatings = await db
@@ -95,14 +95,34 @@ export default async function BoardPage() {
       const myRating =
         allRatings.find((rating) => rating.userId === userId)?.rating ?? null;
 
+      const poll = await getPollData(film.id, film.allowMultiVote, userId);
+
+      // For poll films the schedule is driven by the winning option; surface
+      // that as the effective date/time so the board groups & sorts correctly.
+      let date = film.date;
+      let startTime = film.startTime;
+      let endTime = film.endTime;
+      let isGoing = goingUsers.some((a) => a.id === userId);
+      if (poll) {
+        const winner = poll.options.find((o) => o.isWinning) ?? null;
+        date = winner?.date ?? null;
+        startTime = winner?.startTime ?? null;
+        endTime = winner?.endTime ?? null;
+        isGoing = winner ? winner.votedByMe : false;
+      }
+
       return {
         ...film,
+        date,
+        startTime,
+        endTime,
         posterUrl: signedPosterUrl,
         goingUsers,
         interestedUsers,
         isGoing,
         isInterested,
-        canRate: isGoing && hasFilmEnded(film.date, film.endTime),
+        poll,
+        canRate: isGoing && hasFilmEnded(date, endTime),
         myRating,
         ratingCount,
         averageRating,
