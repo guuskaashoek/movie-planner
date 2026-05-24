@@ -4,29 +4,37 @@ import { subscribeLiveEvents } from "@/lib/live";
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest) {
+  let ping: ReturnType<typeof setInterval> | undefined;
+  let unsubscribe: (() => void) | undefined;
+  let closed = false;
+
+  const cleanup = () => {
+    if (closed) return;
+    closed = true;
+    if (ping) clearInterval(ping);
+    if (unsubscribe) unsubscribe();
+  };
+
   const stream = new ReadableStream({
     start(controller) {
       const enc = new TextEncoder();
 
       const send = (data: unknown, event?: string) => {
-        if (event) controller.enqueue(enc.encode(`event: ${event}\n`));
-        controller.enqueue(enc.encode(`data: ${JSON.stringify(data)}\n\n`));
+        if (closed) return;
+        try {
+          if (event) controller.enqueue(enc.encode(`event: ${event}\n`));
+          controller.enqueue(enc.encode(`data: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          cleanup();
+        }
       };
 
       send({ ok: true }, "connected");
-      const ping = setInterval(() => send({ t: Date.now() }, "ping"), 15000);
-      const unsubscribe = subscribeLiveEvents((event) => send(event, "update"));
-
-      const close = () => {
-        clearInterval(ping);
-        unsubscribe();
-      };
-
-      // @ts-expect-error stream cancel exists at runtime
-      controller.oncancel = close;
+      ping = setInterval(() => send({ t: Date.now() }, "ping"), 15000);
+      unsubscribe = subscribeLiveEvents((event) => send(event, "update"));
     },
     cancel() {
-      // no-op; oncancel handles cleanup where available
+      cleanup();
     },
   });
 
