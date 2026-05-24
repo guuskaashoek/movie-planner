@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Voter = {
   id: number;
@@ -49,6 +49,10 @@ export function PollVoter({
 }) {
   const [poll, setPoll] = useState<Poll>(initialPoll);
   const [pendingId, setPendingId] = useState<number | null>(null);
+
+  useEffect(() => {
+    setPoll(initialPoll);
+  }, [initialPoll]);
 
   const maxVotes = Math.max(1, ...poll.options.map((o) => o.voteCount));
   const hasAnyVotes = poll.options.some((o) => o.voteCount > 0);
