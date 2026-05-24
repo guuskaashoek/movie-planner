@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { attendees, users } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { publishLiveEvent } from "@/lib/live";
 
 type RouteParams = {
     params: Promise<{ id: string }>;
@@ -45,6 +46,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
         .innerJoin(users, eq(attendees.userId, users.id))
         .where(sql`${attendees.filmId} = ${filmId} AND ${attendees.type} = ${type}`);
 
+    publishLiveEvent({ topic: "attendance", filmId });
     return NextResponse.json({ attendees: filmAttendees }, { status: 201 });
 }
 
@@ -77,5 +79,6 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
         .innerJoin(users, eq(attendees.userId, users.id))
         .where(sql`${attendees.filmId} = ${filmId} AND ${attendees.type} = ${type}`);
 
+    publishLiveEvent({ topic: "attendance", filmId });
     return NextResponse.json({ attendees: filmAttendees }, { status: 200 });
 }

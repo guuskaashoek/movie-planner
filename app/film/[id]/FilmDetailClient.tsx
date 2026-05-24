@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PollVoter, type Poll } from "@/app/components/PollVoter";
 import { CommentsSection, type FilmComment } from "@/app/components/CommentsSection";
+import { useLiveUpdates } from "@/app/components/useLiveUpdates";
 
 type Attendee = {
   id: number;
@@ -68,6 +70,7 @@ function PersonRow({ user }: { user: Attendee }) {
 }
 
 export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
+  const router = useRouter();
   const { film } = initial;
   const [goingUsers, setGoingUsers] = useState<Attendee[]>(initial.goingUsers);
   const [interestedUsers, setInterestedUsers] = useState<Attendee[]>(initial.interestedUsers);
@@ -77,6 +80,26 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
   const [averageRating, setAverageRating] = useState(initial.averageRating);
   const [ratingCount, setRatingCount] = useState(initial.ratingCount);
   const [copied, setCopied] = useState(false);
+  const liveRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setGoingUsers(initial.goingUsers);
+    setInterestedUsers(initial.interestedUsers);
+    setIsGoing(initial.isGoing);
+    setIsInterested(initial.isInterested);
+    setMyRating(initial.myRating);
+    setAverageRating(initial.averageRating);
+    setRatingCount(initial.ratingCount);
+  }, [initial]);
+
+  const refreshLive = useCallback(() => {
+    if (liveRefreshTimeout.current) return;
+    liveRefreshTimeout.current = setTimeout(() => {
+      router.refresh();
+      liveRefreshTimeout.current = null;
+    }, 350);
+  }, [router]);
+  useLiveUpdates(refreshLive);
 
   const formats = film.formats ? film.formats.split(",") : [];
 

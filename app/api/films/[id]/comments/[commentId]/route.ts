@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { comments, films } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
 import { getComments } from "@/lib/comments";
+import { publishLiveEvent } from "@/lib/live";
 
 type RouteParams = { params: Promise<{ id: string; commentId: string }> };
 
@@ -37,5 +38,6 @@ export async function DELETE(_req: NextRequest, { params }: RouteParams) {
   await db.delete(comments).where(eq(comments.id, commentId));
 
   const list = await getComments(filmId);
+  publishLiveEvent({ topic: "comment", filmId });
   return NextResponse.json({ comments: list });
 }

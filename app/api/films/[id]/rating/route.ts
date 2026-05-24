@@ -4,6 +4,7 @@ import { db } from "@/lib/db/client";
 import { attendees, filmRatings, films } from "@/lib/db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
+import { publishLiveEvent } from "@/lib/live";
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -102,6 +103,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     .from(filmRatings)
     .where(eq(filmRatings.filmId, filmId));
 
+  publishLiveEvent({ topic: "rating", filmId });
   return NextResponse.json({
     filmId,
     myRating: parsed.data.rating,
