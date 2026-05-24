@@ -139,7 +139,7 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
       <div className="relative overflow-hidden rounded-3xl border border-zinc-800">
         {film.posterUrl && (
           <div className="absolute inset-0">
-            <img src={film.posterUrl} alt="" className="h-full w-full scale-110 object-cover opacity-30 blur-2xl" referrerPolicy="no-referrer" />
+            <img src={film.posterUrl} alt="" className="h-full w-full scale-110 object-cover blur-2xl" referrerPolicy="no-referrer" />
             <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-zinc-950/40" />
           </div>
         )}
@@ -169,7 +169,6 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-400">
               {initial.poll ? (
                 <span className="inline-flex items-center gap-1.5 font-medium text-blue-300">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-2v13M9 19c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2z" /></svg>
                   Time poll open
                 </span>
               ) : film.date ? (
