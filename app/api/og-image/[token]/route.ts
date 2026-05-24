@@ -42,6 +42,7 @@ export async function GET(
       headers: {
         "Content-Type": s3Response.ContentType ?? "image/jpeg",
         "Cache-Control": "public, max-age=86400, s-maxage=86400",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch {

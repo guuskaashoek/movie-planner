@@ -3,6 +3,17 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { films } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
+import { z } from "zod";
+
+const updateSchema = z.object({
+  title: z.string().min(1).optional(),
+  date: z.string().nullable().optional(),
+  releaseDate: z.string().nullable().optional(),
+  startTime: z.string().nullable().optional(),
+  endTime: z.string().nullable().optional(),
+  formats: z.string().nullable().optional(),
+  posterUrl: z.string().nullable().optional(),
+});
 
 type RouteParams = {
   params: Promise<{
@@ -46,11 +57,16 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     return new NextResponse("Invalid id", { status: 400 });
   }
 
-  const json = await req.json();
+  const parsed = updateSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json(parsed.error.format(), { status: 400 });
+  }
+  const json = parsed.data;
+
   // Dynamically build the update object to only update fields present in the request.
   // This supports partial updates and prevents overwriting existing data with null/undefined
   // if it wasn't sent.
-  const updateData: any = {};
+  const updateData: Partial<typeof films.$inferInsert> = {};
   if (json.title !== undefined) updateData.title = json.title;
   if (json.date !== undefined) updateData.date = json.date;
   if (json.releaseDate !== undefined) updateData.releaseDate = json.releaseDate;

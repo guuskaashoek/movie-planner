@@ -4,12 +4,15 @@ import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
 import { s3, BUCKET_NAME } from "@/lib/s3";
 
-const allowedTypes = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
+// Map of accepted content types to the extension used for the stored object.
+// The extension is derived from the validated type, never from the user-supplied
+// filename, so an attacker can't influence the S3 object key.
+const typeToExtension: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -24,7 +27,8 @@ export async function POST(req: NextRequest) {
     return new NextResponse("No file provided", { status: 400 });
   }
 
-  if (!allowedTypes.includes(file.type)) {
+  const ext = typeToExtension[file.type];
+  if (!ext) {
     return new NextResponse("Unsupported file type", { status: 400 });
   }
 
@@ -36,7 +40,6 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Bucket not configured", { status: 500 });
   }
 
-  const ext = file.name.split(".").pop() || "jpg";
   const key = `${randomUUID()}.${ext}`;
 
   const arrayBuffer = await file.arrayBuffer();

@@ -9,10 +9,6 @@ import { signPosterUrl } from "@/lib/s3";
 export default async function MyFilmsPage() {
   const session = await auth();
 
-  if (session?.user) {
-    console.log("MyFilms Page - Session User:", JSON.stringify(session.user, null, 2));
-  }
-
   if (!session?.user) {
     redirect("/");
   }
