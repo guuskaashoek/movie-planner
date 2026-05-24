@@ -89,6 +89,20 @@ export const attendees = sqliteTable("attendees", {
     .default(sql`(strftime('%s','now') * 1000)`),
 });
 
+export const comments = sqliteTable("comments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  filmId: integer("film_id")
+    .notNull()
+    .references(() => films.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(strftime('%s','now') * 1000)`),
+});
+
 export const filmRatings = sqliteTable(
   "film_ratings",
   {

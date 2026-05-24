@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PollVoter, type Poll } from "@/app/components/PollVoter";
 
 type Attendee = {
@@ -236,7 +237,10 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                 }`}
             >
               <div className="flex gap-4 p-3 sm:gap-6">
-                <div className="relative aspect-[2/3] w-24 flex-none overflow-hidden rounded-lg bg-zinc-800 shadow-lg sm:w-32">
+                <Link
+                  href={`/film/${film.id}`}
+                  className="relative aspect-[2/3] w-24 flex-none cursor-pointer overflow-hidden rounded-lg bg-zinc-800 shadow-lg sm:w-32"
+                >
                   {/* Poster content */}
                   {film.posterUrl ? (
                     <img
@@ -257,10 +261,10 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                       <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
                     </div>
                   )}
-                </div>
+                </Link>
 
                 <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
-                  <div className="space-y-2">
+                  <Link href={`/film/${film.id}`} className="block space-y-2">
                     <div>
                       <h3 className="truncate text-lg font-bold text-zinc-100 group-hover:text-white">
                         {film.title}
@@ -283,7 +287,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                     {film.description && (
                       <p className="line-clamp-2 text-sm text-zinc-400">{film.description}</p>
                     )}
-                  </div>
+                  </Link>
 
                   <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
                     {(film.ratingCount > 0 || film.canRate) && (

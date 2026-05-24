@@ -7,6 +7,8 @@ import { signPosterUrl } from "@/lib/s3";
 import { InviteJoinButton } from "./InviteJoinButton";
 import { PollVoter } from "@/app/components/PollVoter";
 import { getPollData } from "@/lib/poll";
+import { CommentsSection } from "@/app/components/CommentsSection";
+import { getComments } from "@/lib/comments";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 
@@ -111,6 +113,7 @@ export default async function InvitePage({
   const posterUrl = await signPosterUrl(film.posterUrl);
   const formats = film.formats ? film.formats.split(",") : [];
   const poll = await getPollData(film.id, film.allowMultiVote, userId ?? null);
+  const comments = await getComments(film.id);
 
   return (
     <div className="mx-auto max-w-lg py-8">
@@ -329,6 +332,16 @@ export default async function InvitePage({
             )}
           </div>
           )}
+
+          {/* Comments */}
+          <div className="border-t border-zinc-800 pt-6">
+            <CommentsSection
+              filmId={film.id}
+              initialComments={comments}
+              canComment={!!userId}
+              currentUserId={userId ?? null}
+            />
+          </div>
         </div>
       </div>
 

@@ -37,6 +37,16 @@ sqlite.prepare(`
   ON poll_votes (option_id, user_id)
 `).run();
 
+sqlite.prepare(`
+  CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    film_id INTEGER NOT NULL REFERENCES films(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    body TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
+  )
+`).run();
+
 
 export const db = drizzle(sqlite);
 
