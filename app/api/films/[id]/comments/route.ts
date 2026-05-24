@@ -5,6 +5,7 @@ import { comments, films } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getComments } from "@/lib/comments";
+import { publishLiveEvent } from "@/lib/live";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -38,5 +39,6 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   await db.insert(comments).values({ filmId, userId, body: parsed.data.body });
 
   const list = await getComments(filmId);
+  publishLiveEvent({ topic: "comment", filmId });
   return NextResponse.json({ comments: list }, { status: 201 });
 }

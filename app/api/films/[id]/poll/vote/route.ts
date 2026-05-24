@@ -5,6 +5,7 @@ import { films, pollOptions, pollVotes } from "@/lib/db/schema";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { getPollData } from "@/lib/poll";
+import { publishLiveEvent } from "@/lib/live";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
   }
 
   const poll = await getPollData(filmId, film.allowMultiVote, userId);
+  publishLiveEvent({ topic: "poll", filmId });
   return NextResponse.json({ poll });
 }
 
@@ -89,5 +91,6 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     .where(and(eq(pollVotes.optionId, parsed.data.optionId), eq(pollVotes.userId, userId)));
 
   const poll = await getPollData(filmId, film.allowMultiVote, userId);
+  publishLiveEvent({ topic: "poll", filmId });
   return NextResponse.json({ poll });
 }

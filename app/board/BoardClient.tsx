@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PollVoter, type Poll } from "@/app/components/PollVoter";
+import { useLiveUpdates } from "@/app/components/useLiveUpdates";
 
 type Attendee = {
   id: number;
@@ -49,6 +50,15 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   const [showPastReleases, setShowPastReleases] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
   const [copiedInviteId, setCopiedInviteId] = useState<number | null>(null);
+  const liveRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshLive = useCallback(() => {
+    if (liveRefreshTimeout.current) return;
+    liveRefreshTimeout.current = setTimeout(() => {
+      router.refresh();
+      liveRefreshTimeout.current = null;
+    }, 350);
+  }, [router]);
+  useLiveUpdates(refreshLive);
 
   function hasFilmEnded(date: string | null, endTime: string | null) {
     if (!date) return false;
@@ -362,7 +372,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                         ) : (
                           <>
                             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-                            I'm interested
+                            I&apos;m interested
                           </>
                         )}
                       </button>
