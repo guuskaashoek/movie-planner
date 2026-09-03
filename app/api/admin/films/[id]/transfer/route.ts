@@ -1,30 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionActor } from "@/lib/authz";
-import { ServiceError, rateFilm } from "@/lib/films";
+import { ServiceError, transferFilm } from "@/lib/films";
 
-type RouteParams = {
-  params: Promise<{ id: string }>;
-};
+type RouteParams = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, { params }: RouteParams) {
   const actor = await getSessionActor();
   if (!actor) return new NextResponse("Unauthorized", { status: 401 });
 
-  const { id: idParam } = await params;
-  const filmId = Number(idParam);
-  if (!Number.isInteger(filmId)) {
-    return new NextResponse("Invalid film ID", { status: 400 });
-  }
+  const { id } = await params;
 
   try {
     const json = await req.json();
-    const result = await rateFilm(actor, filmId, Number(json.rating));
-    return NextResponse.json({ ...result, myRating: result.rating });
+    const film = await transferFilm(actor, Number(id), json.owner);
+    return NextResponse.json({ film });
   } catch (err) {
     if (err instanceof ServiceError) {
       return new NextResponse(err.message, { status: err.status });
     }
-    console.error("[films/:id/rating]", err);
+    console.error("[admin/films/:id/transfer]", err);
     return new NextResponse("Internal server error", { status: 500 });
   }
 }

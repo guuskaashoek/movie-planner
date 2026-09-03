@@ -7,6 +7,27 @@ export const users = sqliteTable("users", {
   name: text("name"),
   image: text("image"),
   googleId: text("google_id").notNull().unique(),
+  // 'user' | 'admin'. Admins may manage every film, poll, comment and rating,
+  // both in the web UI and over MCP.
+  role: text("role").notNull().default("user"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(strftime('%s','now') * 1000)`),
+});
+
+// Personal access tokens used by MCP clients (Grok, Claude, ...). Only the
+// SHA-256 hash is stored; the plaintext token is shown once at creation.
+export const apiKeys = sqliteTable("api_keys", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  // First characters of the token, so a key stays recognisable in the UI.
+  tokenPrefix: text("token_prefix").notNull(),
+  lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+  revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(strftime('%s','now') * 1000)`),
@@ -25,6 +46,10 @@ export const films = sqliteTable("films", {
   endTime: text("end_time"), // HH:mm
   posterUrl: text("poster_url"),
   formats: text("formats"), // Comma separated: IMAX,4DX,3D,etc.
+  // When tickets for this screening go on sale (YYYY-MM-DD + optional HH:mm).
+  ticketsOnSaleDate: text("tickets_on_sale_date"),
+  ticketsOnSaleTime: text("tickets_on_sale_time"),
+  ticketsUrl: text("tickets_url"),
   inviteToken: text("invite_token").unique(),
   // When true, voters may pick more than one poll option.
   allowMultiVote: integer("allow_multi_vote", { mode: "boolean" })

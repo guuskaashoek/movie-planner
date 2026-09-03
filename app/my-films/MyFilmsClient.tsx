@@ -24,7 +24,11 @@ type Film = {
   endTime: string | null;
   posterUrl: string | null;
   formats: string | null;
+  ticketsOnSaleDate: string | null;
+  ticketsOnSaleTime: string | null;
+  ticketsUrl: string | null;
   createdBy: number;
+  creator?: { name: string | null; email: string; image: string | null } | null;
   attendees: Attendee[];
   attendeeCount: number;
   isAttending: boolean;
@@ -42,6 +46,8 @@ type PollOptionDraft = {
 type InitialData = {
   films: Film[];
   currentUserId: number;
+  /** Admins may edit and delete every member's film, not just their own. */
+  isAdmin: boolean;
 };
 
 // --- CUSTOM DATE PICKER COMPONENT ---
@@ -275,11 +281,14 @@ function FilmRow({
   onEdit,
   onDelete,
   isPast = false,
+  ownedByOther = false,
 }: {
   film: Film;
   onEdit: (film: Film) => void;
   onDelete: (id: number) => void;
   isPast?: boolean;
+  /** Only an admin sees rows they do not own; the badge says whose film it is. */
+  ownedByOther?: boolean;
 }) {
   return (
     <div
@@ -310,7 +319,14 @@ function FilmRow({
 
       <div className="flex flex-1 flex-col justify-between py-2 pr-4">
         <div>
-          <h4 className="font-semibold text-zinc-200">{film.title}</h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="font-semibold text-zinc-200">{film.title}</h4>
+            {ownedByOther && (
+              <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-300">
+                {film.creator?.name ?? film.creator?.email ?? "other member"}
+              </span>
+            )}
+          </div>
           <div className="space-y-0.5">
             {film.date ? (
               <p className="text-xs text-zinc-500">
@@ -322,6 +338,12 @@ function FilmRow({
               </p>
             ) : (
               <p className="text-xs text-zinc-500">Date TBD</p>
+            )}
+            {film.ticketsOnSaleDate && (
+              <p className="text-xs text-amber-400/80">
+                Tickets: {format(new Date(film.ticketsOnSaleDate), "dd MMM yyyy")}
+                {film.ticketsOnSaleTime ? ` · ${film.ticketsOnSaleTime}` : ""}
+              </p>
             )}
           </div>
           {film.formats && (
@@ -375,6 +397,9 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     posterFile: File | null;
     currentPosterUrl: string | null;
     selectedFormats: string[];
+    ticketsOnSaleDate: string;
+    ticketsOnSaleTime: string;
+    ticketsUrl: string;
     pollEnabled: boolean;
     allowMultiVote: boolean;
     pollOptions: PollDraft[];
@@ -389,6 +414,9 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     posterFile: null,
     currentPosterUrl: null,
     selectedFormats: [],
+    ticketsOnSaleDate: "",
+    ticketsOnSaleTime: "",
+    ticketsUrl: "",
     pollEnabled: false,
     allowMultiVote: false,
     pollOptions: [],
@@ -400,8 +428,10 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
 
   const today = new Date().toISOString().split("T")[0];
 
-  // Filter shows only films created by me that I can manage
-  const allMyFilms = films.filter((f) => f.createdBy === initial.currentUserId);
+  // Films I may manage: my own, or every film when I am an admin.
+  const allMyFilms = films.filter(
+    (f) => initial.isAdmin || f.createdBy === initial.currentUserId
+  );
 
   // A film is "past" if its screening date has passed, or (no screening date but release date has passed)
   const isPastFilm = (f: Film) =>
@@ -538,6 +568,19 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           body.formats = form.selectedFormats.length > 0 ? form.selectedFormats.join(",") : null;
         }
 
+        if (isModified('ticketsOnSaleDate')) {
+          body.ticketsOnSaleDate = form.ticketsOnSaleDate || null;
+        }
+        if (isModified('ticketsOnSaleTime') || isModified('ticketsOnSaleDate')) {
+          // A time without a date means nothing, so it clears with the date.
+          body.ticketsOnSaleTime = form.ticketsOnSaleDate
+            ? form.ticketsOnSaleTime || null
+            : null;
+        }
+        if (isModified('ticketsUrl')) {
+          body.ticketsUrl = form.ticketsUrl.trim() || null;
+        }
+
         if (posterChanged) {
           body.posterUrl = posterUrl ?? null;
         }
@@ -561,6 +604,11 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           endTime: form.pollEnabled ? null : form.date ? (form.endTime || null) : null,
           posterUrl: posterUrl ?? null,
           formats: form.selectedFormats.length > 0 ? form.selectedFormats.join(",") : null,
+          ticketsOnSaleDate: form.ticketsOnSaleDate || null,
+          ticketsOnSaleTime: form.ticketsOnSaleDate
+            ? form.ticketsOnSaleTime || null
+            : null,
+          ticketsUrl: form.ticketsUrl.trim() || null,
         };
 
         const res = await fetch("/api/films", {
@@ -629,6 +677,9 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
       posterFile: null,
       currentPosterUrl: film.posterUrl,
       selectedFormats: film.formats ? film.formats.split(",") : [],
+      ticketsOnSaleDate: film.ticketsOnSaleDate || "",
+      ticketsOnSaleTime: film.ticketsOnSaleTime || "",
+      ticketsUrl: film.ticketsUrl || "",
       pollEnabled: draftOptions.length > 0,
       allowMultiVote: film.allowMultiVote,
       pollOptions: draftOptions,
@@ -643,6 +694,22 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     setForm(initialFormState);
     setOriginalForm(initialFormState);
   }
+
+  // Deep link from the admin overview: /my-films?edit=<id> opens that film in
+  // the editor once, then drops the parameter again.
+  const openedFromUrl = useRef(false);
+  useEffect(() => {
+    if (openedFromUrl.current) return;
+    const requested = Number(new URLSearchParams(window.location.search).get("edit"));
+    if (!requested) return;
+    const film = films.find((f) => f.id === requested);
+    if (!film) return;
+    openedFromUrl.current = true;
+    handleEdit(film);
+    window.history.replaceState(null, "", "/my-films");
+    // handleEdit is stable for the lifetime of this component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [films]);
 
   return (
     <div className="mx-auto max-w-2xl space-y-12 pb-24">
@@ -721,6 +788,71 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
                 onChange={(date) => setForm({ ...form, releaseDate: date })}
                 optional
                 description="Original cinema release"
+              />
+            </div>
+          </div>
+
+          {/* --- TICKETS ON SALE --- */}
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-zinc-200">Tickets on sale</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Note when tickets are released so nobody misses the pre-sale.
+                </p>
+              </div>
+              {form.ticketsOnSaleDate && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      ticketsOnSaleDate: "",
+                      ticketsOnSaleTime: "",
+                    }))
+                  }
+                  className="flex-none rounded-md border border-zinc-700 px-2 py-1 text-[11px] text-zinc-400 transition-colors hover:border-zinc-500 hover:text-zinc-200"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className={isEditing && isModified("ticketsOnSaleDate") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
+                <CustomDatePicker
+                  label="Sale Date"
+                  value={form.ticketsOnSaleDate}
+                  onChange={(date) => setForm({ ...form, ticketsOnSaleDate: date })}
+                  optional
+                  description="When can we book?"
+                />
+              </div>
+              {form.ticketsOnSaleDate && (
+                <div className={isEditing && isModified("ticketsOnSaleTime") ? "rounded-lg p-1 ring-1 ring-amber-500/30 bg-amber-500/5" : ""}>
+                  <CustomTimePicker
+                    label="Sale Time"
+                    value={form.ticketsOnSaleTime}
+                    onChange={(time) => setForm({ ...form, ticketsOnSaleTime: time })}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Ticket link <span className="text-zinc-600">(optional)</span>
+              </label>
+              <input
+                type="url"
+                inputMode="url"
+                value={form.ticketsUrl}
+                onChange={(e) => setForm({ ...form, ticketsUrl: e.target.value })}
+                placeholder="https://tickets.example.com/..."
+                className={getFieldClass(
+                  "ticketsUrl",
+                  "w-full rounded-lg border border-zinc-800 bg-black px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                )}
               />
             </div>
           </div>
@@ -907,7 +1039,7 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
               </span>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/avif"
                 className="hidden"
                 onChange={(e) =>
                   setForm({ ...form, posterFile: e.target.files?.[0] || null })
@@ -954,7 +1086,13 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
         ) : (
           <div className="space-y-4">
             {myManagedFilms.map((film) => (
-              <FilmRow key={film.id} film={film} onEdit={handleEdit} onDelete={handleDelete} />
+              <FilmRow
+                key={film.id}
+                film={film}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                ownedByOther={film.createdBy !== initial.currentUserId}
+              />
             ))}
 
             {/* PAST MANAGED FILMS */}
@@ -980,7 +1118,14 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
                 {showPastManaged && (
                   <div className="mt-4 space-y-3 animate-in slide-in-from-top-4 fade-in duration-300">
                     {pastManagedFilms.map((film) => (
-                      <FilmRow key={film.id} film={film} onEdit={handleEdit} onDelete={handleDelete} isPast />
+                      <FilmRow
+                        key={film.id}
+                        film={film}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                        ownedByOther={film.createdBy !== initial.currentUserId}
+                        isPast
+                      />
                     ))}
                   </div>
                 )}

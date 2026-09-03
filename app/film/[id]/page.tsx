@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { getSessionActor } from "@/lib/authz";
 import { db } from "@/lib/db/client";
 import { films, attendees, users, filmRatings } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
@@ -31,6 +32,8 @@ export default async function FilmDetailPage({
   if (!session?.user) redirect("/");
   // @ts-expect-error id is added in auth callback
   const userId: number = session.user.id;
+  const actor = await getSessionActor();
+  const isAdmin = actor?.isAdmin ?? false;
   if (!userId) redirect("/");
 
   const { id: idParam } = await params;
@@ -98,6 +101,9 @@ export default async function FilmDetailPage({
             startTime,
             endTime,
             releaseDate: film.releaseDate,
+            ticketsOnSaleDate: film.ticketsOnSaleDate,
+            ticketsOnSaleTime: film.ticketsOnSaleTime,
+            ticketsUrl: film.ticketsUrl,
             posterUrl,
             inviteToken: film.inviteToken,
             creator: creator ?? null,
@@ -113,7 +119,8 @@ export default async function FilmDetailPage({
           ratingCount,
           comments,
           currentUserId: userId,
-          isCreator: film.createdBy === userId,
+          // Admins moderate every film, not just their own.
+          isCreator: film.createdBy === userId || isAdmin,
           baseUrl: baseUrl.replace(/\/$/, ""),
         }}
       />

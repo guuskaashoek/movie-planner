@@ -1,129 +1,63 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { db } from "@/lib/db/client";
-import { films, attendees, users } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
-import { z } from "zod";
-import { signPosterUrl } from "@/lib/s3";
-import { randomBytes } from "crypto";
-import { publishLiveEvent } from "@/lib/live";
+import { getSessionActor } from "@/lib/authz";
+import { isOwnStorageUrl } from "@/lib/images";
+import { ServiceError, createFilm, listFilms } from "@/lib/films";
 
-const filmSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().nullable().optional(),
-  date: z.string().nullable().optional(),
-  releaseDate: z.string().nullable().optional(),
-  startTime: z.string().nullable().optional(),
-  endTime: z.string().nullable().optional(),
-  posterUrl: z.string().nullable().optional(),
-  formats: z.string().nullable().optional(),
-});
-
-export async function GET() {
-  const session = await auth();
-  // @ts-expect-error added in auth callback
-  const userId: number | undefined = session?.user?.id;
-  if (!userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
+function fail(err: unknown) {
+  if (err instanceof ServiceError) {
+    return new NextResponse(err.message, { status: err.status });
   }
+  console.error("[films]", err);
+  return new NextResponse("Internal server error", { status: 500 });
+}
 
-  // Get all films with attendee information
-  const allFilms = await db
-    .select({
-      id: films.id,
-      title: films.title,
-      description: films.description,
-      date: films.date,
-      releaseDate: films.releaseDate,
-      startTime: films.startTime,
-      endTime: films.endTime,
-      posterUrl: films.posterUrl,
-      createdBy: films.createdBy,
-      createdAt: films.createdAt,
-      attendeeCount: sql<number>`count(distinct ${attendees.userId})`,
-      isAttending: sql<number>`sum(case when ${attendees.userId} = ${userId} then 1 else 0 end)`,
-    })
-    .from(films)
-    .leftJoin(attendees, eq(films.id, attendees.filmId))
-    .groupBy(films.id)
-    .orderBy(films.date, films.startTime);
+export async function GET(req: NextRequest) {
+  const actor = await getSessionActor();
+  if (!actor) return new NextResponse("Unauthorized", { status: 401 });
 
-  // Get creator info and attendee details for each film
-  const filmsWithDetails = await Promise.all(
-    allFilms.map(async (film) => {
-      const [creator] = await db
-        .select({ name: users.name, email: users.email, image: users.image })
-        .from(users)
-        .where(eq(users.id, film.createdBy));
+  const { searchParams } = new URL(req.url);
 
-      const filmAttendees = await db
-        .select({
-          id: users.id,
-          name: users.name,
-          email: users.email,
-          image: users.image,
-        })
-        .from(attendees)
-        .innerJoin(users, eq(attendees.userId, users.id))
-        .where(eq(attendees.filmId, film.id));
-
-      const signedPosterUrl = await signPosterUrl(film.posterUrl);
-
-      return {
-        ...film,
-        posterUrl: signedPosterUrl,
-        isAttending: film.isAttending > 0,
-        creator,
-        attendees: filmAttendees,
-      };
-    })
-  );
-
-  return NextResponse.json({ films: filmsWithDetails });
+  try {
+    const result = await listFilms(actor, {
+      scope: (searchParams.get("scope") as "all" | "upcoming" | "past" | "mine") ?? "all",
+      query: searchParams.get("query"),
+      owner: searchParams.get("owner"),
+      limit: searchParams.get("limit") ? Number(searchParams.get("limit")) : 100,
+      offset: searchParams.get("offset") ? Number(searchParams.get("offset")) : 0,
+    });
+    return NextResponse.json(result);
+  } catch (err) {
+    return fail(err);
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  // @ts-expect-error added in auth callback
-  const userId: number | undefined = session?.user?.id;
-  if (!userId) {
-    return new NextResponse("Unauthorized", { status: 401 });
+  const actor = await getSessionActor();
+  if (!actor) return new NextResponse("Unauthorized", { status: 401 });
+
+  try {
+    const json = await req.json();
+
+    // From the web UI a poster is always a file that went through /api/upload.
+    // Importing a poster from an arbitrary link is an MCP-only feature.
+    if (json.posterUrl && !isOwnStorageUrl(String(json.posterUrl))) {
+      throw new ServiceError("Upload the poster file instead of linking to it", 400);
+    }
+
+    const film = await createFilm(actor, {
+      title: json.title,
+      description: json.description ?? null,
+      date: json.date ?? null,
+      releaseDate: json.releaseDate ?? null,
+      startTime: json.startTime ?? null,
+      endTime: json.endTime ?? null,
+      formats: json.formats ?? null,
+      posterUrl: json.posterUrl ?? null,
+      allowMultiVote: json.allowMultiVote ?? false,
+    });
+
+    return NextResponse.json({ film }, { status: 201 });
+  } catch (err) {
+    return fail(err);
   }
-
-  const body = await req.json();
-  const parsed = filmSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json(parsed.error.format(), { status: 400 });
-  }
-
-  // Ensure user exists in db (handle stale sessions after db reset)
-  const userExists = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-
-  if (!userExists[0]) {
-    return new NextResponse("User not found", { status: 401 });
-  }
-
-  // Create film
-  const [inserted] = await db
-    .insert(films)
-    .values({
-      ...parsed.data,
-      createdBy: userId,
-      inviteToken: randomBytes(16).toString("hex"),
-    })
-    .returning();
-
-  // Add creator as first attendee
-  await db.insert(attendees).values({
-    filmId: inserted.id,
-    userId,
-  });
-
-  publishLiveEvent({ topic: "film", filmId: inserted.id });
-  return NextResponse.json({ film: inserted }, { status: 201 });
 }
-

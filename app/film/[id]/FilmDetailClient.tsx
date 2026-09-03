@@ -23,6 +23,9 @@ export type FilmDetail = {
   startTime: string | null;
   endTime: string | null;
   releaseDate: string | null;
+  ticketsOnSaleDate: string | null;
+  ticketsOnSaleTime: string | null;
+  ticketsUrl: string | null;
   posterUrl: string | null;
   inviteToken: string | null;
   creator: { name: string | null; email: string; image: string | null } | null;
@@ -207,6 +210,26 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
                 <span className="text-zinc-500">Released {formatLongDate(film.releaseDate)}</span>
               )}
             </div>
+
+            {film.ticketsOnSaleDate && (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                <svg className="h-4 w-4 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5h14a2 2 0 012 2v3a2 2 0 000 4v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a2 2 0 000-4V7a2 2 0 012-2z" /></svg>
+                <span>
+                  Tickets on sale {formatLongDate(film.ticketsOnSaleDate)}
+                  {film.ticketsOnSaleTime && ` at ${film.ticketsOnSaleTime}`}
+                </span>
+                {film.ticketsUrl && (
+                  <a
+                    href={film.ticketsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-md border border-amber-500/50 px-2 py-0.5 text-xs font-medium text-amber-200 transition-colors hover:bg-amber-500/20"
+                  >
+                    Book tickets
+                  </a>
+                )}
+              </div>
+            )}
 
             {initial.film.creator && (
               <p className="text-xs text-zinc-500">

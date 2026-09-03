@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
-import { s3, BUCKET_NAME } from "@/lib/s3";
+import { BUCKET_NAME } from "@/lib/s3";
+import {
+  ALLOWED_UPLOAD_TYPES,
+  MAX_POSTER_BYTES,
+  sniffImageType,
+  storePoster,
+} from "@/lib/images";
 
-const allowedTypes = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
+export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -24,40 +23,38 @@ export async function POST(req: NextRequest) {
     return new NextResponse("No file provided", { status: 400 });
   }
 
-  if (!allowedTypes.includes(file.type)) {
-    return new NextResponse("Unsupported file type", { status: 400 });
+  if (file.type && !ALLOWED_UPLOAD_TYPES.includes(file.type)) {
+    return new NextResponse(
+      "Unsupported file type. Use JPEG, PNG, WebP or AVIF.",
+      { status: 400 }
+    );
   }
 
-  if (file.size > 5 * 1024 * 1024) {
-    return new NextResponse("File too large", { status: 400 });
+  if (file.size > MAX_POSTER_BYTES) {
+    return new NextResponse(
+      `File too large (max ${Math.round(MAX_POSTER_BYTES / 1024 / 1024)}MB)`,
+      { status: 400 }
+    );
+  }
+
+  const body = Buffer.from(await file.arrayBuffer());
+
+  // The declared type and the filename can both be wrong; the bytes decide
+  // what we store and which extension the key gets. Checked before the storage
+  // config so a bad file is always answered with 400, never a 500.
+  const kind = sniffImageType(body);
+  if (!kind) {
+    return new NextResponse(
+      "That file is not a valid JPEG, PNG, WebP or AVIF image.",
+      { status: 400 }
+    );
   }
 
   if (!BUCKET_NAME) {
     return new NextResponse("Bucket not configured", { status: 500 });
   }
 
-  const ext = file.name.split(".").pop() || "jpg";
-  const key = `${randomUUID()}.${ext}`;
-
-  const arrayBuffer = await file.arrayBuffer();
-  const body = Buffer.from(arrayBuffer);
-
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET_NAME,
-      Key: key,
-      Body: body,
-      ContentType: file.type,
-      // ACL removed - relying on private access + presigned URLs
-    }),
-  );
-
-  const baseUrl =
-    process.env.WASABI_PUBLIC_BASE ??
-    `https://s3.eu-central-1.wasabisys.com/${BUCKET_NAME}`;
-
-  const url = `${baseUrl}/${key}`;
+  const url = await storePoster(body, kind);
 
   return NextResponse.json({ url });
 }
-

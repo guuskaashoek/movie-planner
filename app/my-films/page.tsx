@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
+import { getSessionActor } from "@/lib/authz";
 import { MyFilmsClient } from "./MyFilmsClient";
 import { db } from "@/lib/db/client";
 import { films, attendees, users, pollOptions } from "@/lib/db/schema";
@@ -53,6 +55,9 @@ export default async function MyFilmsPage() {
       endTime: films.endTime,
       posterUrl: films.posterUrl,
       formats: films.formats,
+      ticketsOnSaleDate: films.ticketsOnSaleDate,
+      ticketsOnSaleTime: films.ticketsOnSaleTime,
+      ticketsUrl: films.ticketsUrl,
       createdBy: films.createdBy,
       createdAt: films.createdAt,
       allowMultiVote: films.allowMultiVote,
@@ -111,6 +116,9 @@ export default async function MyFilmsPage() {
     })
   );
 
+  const actor = await getSessionActor();
+  const isAdmin = actor?.isAdmin ?? false;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -130,22 +138,32 @@ export default async function MyFilmsPage() {
             </p>
           </div>
         </div>
-        <form
-          action={async () => {
-            "use server";
-            await signOut();
-          }}
-        >
-          <button
-            type="submit"
-            className="rounded-md border border-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900"
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-300 hover:bg-amber-500/20"
+            >
+              Admin
+            </Link>
+          )}
+          <form
+            action={async () => {
+              "use server";
+              await signOut();
+            }}
           >
-            Sign out
-          </button>
-        </form>
+            <button
+              type="submit"
+              className="rounded-md border border-zinc-700 px-3 py-1 text-xs text-zinc-300 hover:border-zinc-600 hover:bg-zinc-900"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
       </div>
       <MyFilmsClient
-        initial={{ films: filmsWithDetails, currentUserId: userId }}
+        initial={{ films: filmsWithDetails, currentUserId: userId, isAdmin }}
       />
     </div>
   );

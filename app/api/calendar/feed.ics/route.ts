@@ -67,6 +67,25 @@ export async function GET(req: NextRequest) {
   const attendingFilmIds = new Set(userAttendees.map((a) => a.filmId));
 
   for (const film of userFilms) {
+    // A ticket sale moment is worth its own reminder, whether or not the
+    // screening itself is scheduled yet.
+    if (film.ticketsOnSaleDate) {
+      const saleAllDay = !film.ticketsOnSaleTime;
+      const saleStart = saleAllDay
+        ? new Date(film.ticketsOnSaleDate)
+        : new Date(`${film.ticketsOnSaleDate}T${film.ticketsOnSaleTime}:00`);
+
+      calendar.createEvent({
+        start: saleStart,
+        end: saleAllDay ? undefined : new Date(saleStart.getTime() + 30 * 60 * 1000),
+        allDay: saleAllDay,
+        summary: `Tickets on sale: ${film.title}`,
+        description: film.ticketsUrl
+          ? `Book here: ${film.ticketsUrl}`
+          : `Tickets for ${film.title} go on sale now.`,
+      });
+    }
+
     const poll = await getPollData(film.id, film.allowMultiVote, userSettings.userId);
 
     // Determine the effective screening date/time and who's attending.
@@ -123,6 +142,10 @@ export async function GET(req: NextRequest) {
 
     if (film.formats) {
       description += `Format: ${film.formats}\n`;
+    }
+
+    if (film.ticketsUrl) {
+      description += `Tickets: ${film.ticketsUrl}\n`;
     }
 
     if (film.releaseDate && date !== film.releaseDate) {

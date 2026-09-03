@@ -23,6 +23,9 @@ type Film = {
   endTime: string | null;
   posterUrl: string | null;
   formats: string | null;
+  ticketsOnSaleDate: string | null;
+  ticketsOnSaleTime: string | null;
+  ticketsUrl: string | null;
   inviteToken: string | null;
   goingUsers: Attendee[];
   interestedUsers: Attendee[];
@@ -297,6 +300,14 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                             {fmt}
                           </span>
                         ))}
+                        {film.ticketsOnSaleDate && (
+                          <span className="flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300">
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5h14a2 2 0 012 2v3a2 2 0 000 4v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a2 2 0 000-4V7a2 2 0 012-2z" /></svg>
+                            Tickets{" "}
+                            {new Date(film.ticketsOnSaleDate).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
+                            {film.ticketsOnSaleTime && ` · ${film.ticketsOnSaleTime}`}
+                          </span>
+                        )}
                       </div>
                     </div>
                     {film.description && (
