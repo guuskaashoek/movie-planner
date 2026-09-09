@@ -273,14 +273,12 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
             {initial.poll ? (
               <PollVoter filmId={film.id} poll={initial.poll} canVote />
-            ) : film.date ? (
+            ) : film.date && film.startTime ? (
               <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
                   <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Screening</h2>
                   <p className="mt-1 text-lg font-bold text-zinc-100">{formatLongDate(film.date)}</p>
-                  {film.startTime && (
-                    <p className="text-sm text-zinc-400">{film.startTime}{film.endTime && ` – ${film.endTime}`}</p>
-                  )}
+                  <p className="text-sm text-zinc-400">{film.startTime}{film.endTime && ` – ${film.endTime}`}</p>
                 </div>
                 <button
                   onClick={toggleGoing}
@@ -290,6 +288,12 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
                 >
                   {isGoing ? "I'm going ✓" : "Join screening"}
                 </button>
+              </div>
+            ) : film.date ? (
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">Screening</h2>
+                <p className="mt-1 text-lg font-bold text-zinc-100">{formatLongDate(film.date)}</p>
+                <p className="mt-1 text-sm text-zinc-400">Add a start time before marking I’m going.</p>
               </div>
             ) : (
               <div className="text-center">

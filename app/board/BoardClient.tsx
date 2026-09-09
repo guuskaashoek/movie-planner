@@ -251,7 +251,7 @@ export function BoardClient({ initial, preview = false }: { initial: ApiResponse
   });
 
   const renderActions = (film: Film, compact = false) => (
-    <FilmQuickActions title={film.title} liked={film.isInterested} going={film.isGoing} hasScreening={!!film.date} hasPoll={!!film.poll} likes={film.interestedUsers.length} goingCount={goingTo(film).length} href={filmHref(film.id)} onLike={() => toggleInterested(film.id, film.isInterested)} onGoing={() => toggleGoing(film.id, film.isGoing)} compact={compact} />
+    <FilmQuickActions title={film.title} liked={film.isInterested} going={film.isGoing} hasScreening={!!film.date && !!film.startTime} hasPoll={!!film.poll} likes={film.interestedUsers.length} goingCount={goingTo(film).length} href={filmHref(film.id)} onLike={() => toggleInterested(film.id, film.isInterested)} onGoing={() => toggleGoing(film.id, film.isGoing)} compact={compact} />
   );
 
   const renderGrid = (items: Film[]) => (

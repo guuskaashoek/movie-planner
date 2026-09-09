@@ -100,7 +100,7 @@ export function BoardSpotlight({
               title={featured.title}
               liked={featured.isInterested}
               going={featured.isGoing}
-              hasScreening={!!featured.date}
+              hasScreening={!!featured.date && !!featured.startTime}
               hasPoll={!!featured.poll}
               likes={featured.interestedUsers.length}
               goingCount={crowd.length}

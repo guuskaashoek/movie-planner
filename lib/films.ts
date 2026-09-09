@@ -397,8 +397,9 @@ export async function createFilm(actor: Actor, input: CreateFilmInput) {
     })
     .returning();
 
-  // The creator is going by default, mirroring the web UI.
-  await db.insert(attendees).values({ filmId: inserted.id, userId: createdBy, type: "going" });
+  if (normalise(input.date) && normalise(input.startTime)) {
+    await db.insert(attendees).values({ filmId: inserted.id, userId: createdBy, type: "going" });
+  }
 
   if (input.pollOptions && input.pollOptions.length > 0) {
     await writePollOptions(inserted.id, input.pollOptions, input.allowMultiVote ?? false);
@@ -797,13 +798,23 @@ export async function setAttendance(
     asUserRef?: string | number | null;
   }
 ) {
-  await loadFilm(filmId);
+  const film = await loadFilm(filmId);
   const type = input.type === "interested" ? "interested" : "going";
 
   let targetUserId = actor.userId;
   if (input.asUserRef != null && input.asUserRef !== "") {
     requireAdmin(actor);
     targetUserId = (await resolveUserRef(input.asUserRef)).id;
+  }
+
+  if (type === "going" && input.attending) {
+    const poll = await getPollData(filmId, film.allowMultiVote, targetUserId);
+    const winner = poll?.options.find((option) => option.isWinning) ?? null;
+    const date = winner?.date ?? film.date;
+    const startTime = winner?.startTime ?? film.startTime;
+    if (!date || !startTime) {
+      throw new ServiceError("Set a screening date and time before marking going", 400);
+    }
   }
 
   if (input.attending) {

@@ -1,9 +1,10 @@
-/** Parse a ticket label such as "Row 8 · Seats 12-14" or "Rij 8 stoel 12". */
+/** Parse a ticket label such as "Zaal 6 · Rij 8 · Seats 12-14". */
 export function parseTicketLabel(label: string) {
+  const hall = /\b(?:zaal|hall|screen)\s*([a-z0-9]+)/i.exec(label)?.[1] ?? null;
   const row = /\b(?:row|rij)\s*([a-z0-9]+)/i.exec(label)?.[1] ?? null;
   const seatsRaw = /\b(?:seats?|stoelen?|stoel)\s*([a-z0-9]+(?:\s*[-–—]\s*[a-z0-9]+)?(?:\s*[,/&]\s*[a-z0-9]+)*)/i.exec(label)?.[1] ?? null;
   const seats = seatsRaw ? seatsRaw.replace(/\s+/g, "").replace(/[-–—]/g, "–") : null;
-  return { row, seats, count: countSeats(seats) };
+  return { hall, row, seats, count: countSeats(seats) };
 }
 
 function countSeats(seats: string | null) {

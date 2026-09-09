@@ -62,25 +62,29 @@ export function CinemaTicket({
       <div className="cinema-ticket-perf" aria-hidden="true" />
       <div className="cinema-ticket-stub">
         <img className="ticket-qr" src={qrSrc} alt={`QR code for ${title}, ${label}`} />
-        <div className="cinema-ticket-seat">
-          {parsed.row || parsed.seats ? (
-            <>
-              <div>
-                <span>Row</span>
-                <strong>{parsed.row ?? "—"}</strong>
-              </div>
-              <div>
-                <span>{parsed.count && parsed.count > 1 ? "Seats" : "Seat"}</span>
-                <strong>{parsed.seats ?? "—"}</strong>
-              </div>
-            </>
-          ) : (
+        {parsed.hall || parsed.row || parsed.seats ? (
+          <div className="cinema-ticket-place">
+            <div>
+              <span>Hall</span>
+              <strong>{parsed.hall ?? "—"}</strong>
+            </div>
+            <div>
+              <span>Row</span>
+              <strong>{parsed.row ?? "—"}</strong>
+            </div>
+            <div>
+              <span>{parsed.count && parsed.count > 1 ? "Seats" : "Seat"}</span>
+              <strong>{parsed.seats ?? "—"}</strong>
+            </div>
+          </div>
+        ) : (
+          <div className="cinema-ticket-place cinema-ticket-place-guest">
             <div>
               <span>Guest</span>
               <strong>{label}</strong>
             </div>
-          )}
-        </div>
+          </div>
+        )}
         <p className="cinema-ticket-order">{order}</p>
       </div>
     </article>
