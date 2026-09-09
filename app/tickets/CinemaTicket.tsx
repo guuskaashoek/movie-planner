@@ -37,6 +37,11 @@ export function CinemaTicket({
 }) {
   const parsed = parseTicketLabel(label);
   const format = formats?.split(",")[0]?.trim() || "Cinema";
+  const when = [
+    date ? formatDay(date) : null,
+    startTime ? `${startTime}${endTime ? ` – ${endTime}` : ""}` : null,
+  ].filter(Boolean).join(" · ");
+  const order = `MP-${String(filmId).padStart(2, "0")}${String(ticketId).padStart(3, "0")}`;
   return (
     <article className="cinema-ticket">
       {posterUrl && (
@@ -52,20 +57,7 @@ export function CinemaTicket({
         <h3>
           <Link href={filmHref}>{title}</Link>
         </h3>
-        <dl className="cinema-ticket-meta">
-          <div>
-            <dt>Date</dt>
-            <dd>{date ? formatDay(date) : "TBA"}</dd>
-          </div>
-          <div>
-            <dt>Time</dt>
-            <dd>{startTime ? `${startTime}${endTime ? ` – ${endTime}` : ""}` : "TBA"}</dd>
-          </div>
-          <div>
-            <dt>No.</dt>
-            <dd>MP-{String(filmId).padStart(2, "0")}{String(ticketId).padStart(3, "0")}</dd>
-          </div>
-        </dl>
+        <p className="cinema-ticket-when">{when || "Time to be announced"}</p>
       </div>
       <div className="cinema-ticket-perf" aria-hidden="true" />
       <div className="cinema-ticket-stub">
@@ -73,18 +65,14 @@ export function CinemaTicket({
         <div className="cinema-ticket-seat">
           {parsed.row || parsed.seats ? (
             <>
-              {parsed.row && (
-                <div>
-                  <span>Row</span>
-                  <strong>{parsed.row}</strong>
-                </div>
-              )}
-              {parsed.seats && (
-                <div>
-                  <span>{parsed.count && parsed.count > 1 ? "Seats" : "Seat"}</span>
-                  <strong>{parsed.seats}</strong>
-                </div>
-              )}
+              <div>
+                <span>Row</span>
+                <strong>{parsed.row ?? "—"}</strong>
+              </div>
+              <div>
+                <span>{parsed.count && parsed.count > 1 ? "Seats" : "Seat"}</span>
+                <strong>{parsed.seats ?? "—"}</strong>
+              </div>
             </>
           ) : (
             <div>
@@ -93,6 +81,7 @@ export function CinemaTicket({
             </div>
           )}
         </div>
+        <p className="cinema-ticket-order">{order}</p>
       </div>
     </article>
   );
