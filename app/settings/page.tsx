@@ -28,6 +28,7 @@ export default async function SettingsPage() {
   const calendar = await getCalendarFeed(actor);
 
   return (
+    <div className="page-frame">
     <SettingsClient
       account={{
         name: actor.name,
@@ -49,5 +50,6 @@ export default async function SettingsPage() {
         adminOnly: t.adminOnly ?? false,
       }))}
     />
+    </div>
   );
 }

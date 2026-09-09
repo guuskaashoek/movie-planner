@@ -2,9 +2,11 @@ import { type Actor } from "@/lib/authz";
 import {
   ServiceError,
   addComment,
+  addFilmTicket,
   createFilm,
   deleteComment,
   deleteFilm,
+  deleteFilmTicket,
   getCalendarFeed,
   getFilm,
   getStats,
@@ -161,6 +163,11 @@ const ticketsProps = {
   },
 };
 
+const spotlightProps = {
+  isMajorRelease: { type: "boolean", description: "Mark a major release to prioritize it in the homepage spotlight. Set false to remove the priority. Past screenings are never featured." },
+  backdropUrl: { type: "string", description: "Wide cinematic still for the homepage hero (ideally 16:9). Downloaded and re-hosted like posters. Empty string clears it; the hero falls back to the poster." },
+};
+
 const asUserProp = {
   asUser: {
     type: "string",
@@ -264,6 +271,7 @@ export const TOOLS: ToolDefinition[] = [
           description: "Comma separated formats, e.g. 'IMAX,3D'.",
         },
         ...ticketsProps,
+        ...spotlightProps,
         posterUrl: {
           type: "string",
           description:
@@ -296,6 +304,8 @@ export const TOOLS: ToolDefinition[] = [
         ticketsOnSaleTime: str(args, "ticketsOnSaleTime") ?? null,
         ticketsUrl: str(args, "ticketsUrl") ?? null,
         posterUrl: str(args, "posterUrl") ?? null,
+        backdropUrl: str(args, "backdropUrl") ?? null,
+        isMajorRelease: bool(args, "isMajorRelease") ?? false,
         allowMultiVote: bool(args, "allowMultiVote") ?? false,
         pollOptions: pollOptionsArg(args, "pollOptions"),
         ownerRef: str(args, "owner") ?? null,
@@ -318,6 +328,7 @@ export const TOOLS: ToolDefinition[] = [
         endTime: timeProp,
         formats: { type: "string", description: "Comma separated formats, e.g. 'IMAX,3D'." },
         ...ticketsProps,
+        ...spotlightProps,
         posterUrl: {
           type: "string",
           description:
@@ -342,9 +353,11 @@ export const TOOLS: ToolDefinition[] = [
         "ticketsOnSaleTime",
         "ticketsUrl",
         "posterUrl",
+        "backdropUrl",
       ]) {
         if (has(args, key)) patch[key] = str(args, key) ?? null;
       }
+      if (has(args, "isMajorRelease")) patch.isMajorRelease = bool(args, "isMajorRelease");
       if (has(args, "allowMultiVote")) patch.allowMultiVote = bool(args, "allowMultiVote");
       return updateFilm(actor, reqNum(args, "filmId"), patch);
     },
@@ -393,6 +406,42 @@ export const TOOLS: ToolDefinition[] = [
       }
       return updateFilm(actor, reqNum(args, "filmId"), patch);
     },
+  },
+  {
+    name: "add_film_ticket",
+    title: "Add an admission ticket",
+    description:
+      "Attach an actual cinema ticket image (for example a Pathé ticket with its original QR code) to a film. The image is downloaded, validated and stored privately behind Movie Planner's attendance check. Only members marked going can open it on the website. Never recreate or alter the QR code.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ...filmIdProp,
+        imageUrl: { type: "string", description: "Public direct URL to the original JPEG, PNG, WebP or AVIF ticket image." },
+        label: { type: "string", description: "Short identifier such as 'Row 8 · Seat 12' or 'Guus'." },
+      },
+      required: ["filmId", "imageUrl"],
+      additionalProperties: false,
+    },
+    handler: (actor, args) => addFilmTicket(actor, reqNum(args, "filmId"), {
+      imageUrl: reqStr(args, "imageUrl"),
+      label: str(args, "label") ?? null,
+    }),
+  },
+  {
+    name: "delete_film_ticket",
+    title: "Delete an admission ticket",
+    description: "Delete one attached admission ticket. The film owner or an admin may do this.",
+    destructive: true,
+    inputSchema: {
+      type: "object",
+      properties: {
+        ...filmIdProp,
+        ticketId: { type: "integer", description: "Ticket id returned by get_film or add_film_ticket." },
+      },
+      required: ["filmId", "ticketId"],
+      additionalProperties: false,
+    },
+    handler: (actor, args) => deleteFilmTicket(actor, reqNum(args, "filmId"), reqNum(args, "ticketId")),
   },
   {
     name: "set_film_poster",

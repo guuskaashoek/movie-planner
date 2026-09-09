@@ -52,6 +52,10 @@ export async function POST(req: NextRequest) {
       startTime: json.startTime ?? null,
       endTime: json.endTime ?? null,
       formats: json.formats ?? null,
+      isMajorRelease: json.isMajorRelease ?? false,
+      ticketsOnSaleDate: json.ticketsOnSaleDate ?? null,
+      ticketsOnSaleTime: json.ticketsOnSaleTime ?? null,
+      ticketsUrl: json.ticketsUrl ?? null,
       posterUrl: json.posterUrl ?? null,
       allowMultiVote: json.allowMultiVote ?? false,
     });

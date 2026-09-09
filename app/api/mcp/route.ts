@@ -158,7 +158,7 @@ async function dispatch(actor: Actor, message: JsonRpcRequest, negotiated: { ver
           version: SERVER_VERSION,
         },
         instructions:
-          "Manage a shared film calendar: create films, set posters from an image URL, run date polls, mark attendance, comment and rate. " +
+          "Manage a shared film calendar: create films, set posters from an image URL, attach original admission-ticket images without recreating their QR codes, run date polls, mark attendance, comment and rate. " +
           "Call whoami first to see whether this account has admin rights - admins can edit, move and delete every user's films and act on behalf of other users with the asUser argument. " +
           "Film ids come from list_films or get_film. Dates are YYYY-MM-DD and times are 24h HH:mm.",
       });

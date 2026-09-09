@@ -7,6 +7,8 @@ const sqlite = new Database("db.sqlite");
 sqlite.pragma("foreign_keys = ON");
 
 // Idempotent migrations
+try { sqlite.prepare("ALTER TABLE films ADD COLUMN backdrop_url TEXT").run(); } catch {}
+try { sqlite.prepare("ALTER TABLE films ADD COLUMN is_major_release INTEGER NOT NULL DEFAULT 0").run(); } catch {}
 try { sqlite.prepare("ALTER TABLE films ADD COLUMN invite_token TEXT").run(); } catch {}
 try { sqlite.prepare("ALTER TABLE attendees ADD COLUMN type TEXT NOT NULL DEFAULT 'going'").run(); } catch {}
 try { sqlite.prepare("ALTER TABLE films ADD COLUMN allow_multi_vote INTEGER NOT NULL DEFAULT 0").run(); } catch {}
@@ -14,6 +16,17 @@ try { sqlite.prepare("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'u
 try { sqlite.prepare("ALTER TABLE films ADD COLUMN tickets_on_sale_date TEXT").run(); } catch {}
 try { sqlite.prepare("ALTER TABLE films ADD COLUMN tickets_on_sale_time TEXT").run(); } catch {}
 try { sqlite.prepare("ALTER TABLE films ADD COLUMN tickets_url TEXT").run(); } catch {}
+
+sqlite.prepare(`
+  CREATE TABLE IF NOT EXISTS film_tickets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    film_id INTEGER NOT NULL REFERENCES films(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    image_url TEXT NOT NULL,
+    created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
+  )
+`).run();
 
 sqlite.prepare(`
   CREATE TABLE IF NOT EXISTS poll_options (
@@ -71,4 +84,3 @@ sqlite.prepare(`
 
 
 export const db = drizzle(sqlite);
-

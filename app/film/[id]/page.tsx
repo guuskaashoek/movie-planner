@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getSessionActor } from "@/lib/authz";
 import { db } from "@/lib/db/client";
-import { films, attendees, users, filmRatings } from "@/lib/db/schema";
+import { films, attendees, users, filmRatings, filmTickets } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
 import { getPollData } from "@/lib/poll";
@@ -86,10 +86,18 @@ export default async function FilmDetailPage({
     isGoing = winner ? winner.votedByMe : false;
   }
 
+  const tickets = isGoing
+    ? await db
+        .select({ id: filmTickets.id, label: filmTickets.label })
+        .from(filmTickets)
+        .where(eq(filmTickets.filmId, filmId))
+        .orderBy(filmTickets.id)
+    : [];
+
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="page-frame-wide">
       <FilmDetailClient
         initial={{
           film: {
@@ -112,6 +120,7 @@ export default async function FilmDetailPage({
           goingUsers,
           interestedUsers,
           isGoing,
+          tickets,
           isInterested: interestedUsers.some((u) => u.id === userId),
           canRate: isGoing && hasFilmEnded(date, endTime),
           myRating,

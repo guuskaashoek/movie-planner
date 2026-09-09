@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 
-export function useLiveUpdates(onUpdate: () => void) {
+export function useLiveUpdates(onUpdate: () => void, enabled = true) {
   useEffect(() => {
+    if (!enabled) return;
     let src: EventSource | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -51,5 +52,5 @@ export function useLiveUpdates(onUpdate: () => void) {
         src.close();
       }
     };
-  }, [onUpdate]);
+  }, [onUpdate, enabled]);
 }

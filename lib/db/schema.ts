@@ -45,6 +45,8 @@ export const films = sqliteTable("films", {
   startTime: text("start_time"), // HH:mm
   endTime: text("end_time"), // HH:mm
   posterUrl: text("poster_url"),
+  backdropUrl: text("backdrop_url"),
+  isMajorRelease: integer("is_major_release", { mode: "boolean" }).notNull().default(false),
   formats: text("formats"), // Comma separated: IMAX,4DX,3D,etc.
   // When tickets for this screening go on sale (YYYY-MM-DD + optional HH:mm).
   ticketsOnSaleDate: text("tickets_on_sale_date"),
@@ -55,6 +57,23 @@ export const films = sqliteTable("films", {
   allowMultiVote: integer("allow_multi_vote", { mode: "boolean" })
     .notNull()
     .default(false),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(strftime('%s','now') * 1000)`),
+});
+
+// Actual admission tickets. The stored image URL is never included in public
+// film data; an authenticated route checks `going` attendance before serving it.
+export const filmTickets = sqliteTable("film_tickets", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  filmId: integer("film_id")
+    .notNull()
+    .references(() => films.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  imageUrl: text("image_url").notNull(),
+  createdBy: integer("created_by")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(strftime('%s','now') * 1000)`),

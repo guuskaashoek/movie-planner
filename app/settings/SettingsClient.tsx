@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CalendarSubscription } from "@/app/board/CalendarSubscription";
 
 type ApiKey = {
   id: number;
@@ -121,15 +122,22 @@ export function SettingsClient({ account, mcpUrl, calendar, initialKeys, tools }
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-white">Settings</h1>
         <p className="text-sm text-zinc-400">
-          Connect an AI assistant to your film board and manage its access.
+          Manage your calendar, account and connected assistants.
         </p>
       </header>
+
+      <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-100">Connect your calendar</h2>
+          <p className="mt-1 text-sm text-zinc-400">Keep the films you’re going to in your own calendar.</p>
+        </div>
+        <CalendarSubscription icsUrl={calendar.icsUrl} />
+      </section>
 
       {/* Account ------------------------------------------------------- */}
       <section className="rounded-lg border border-zinc-800 bg-zinc-950 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs uppercase tracking-wide text-zinc-500">Account</p>
             <p className="mt-1 text-sm font-medium text-zinc-100">
               {account.name ?? account.email}
             </p>
@@ -330,22 +338,7 @@ export function SettingsClient({ account, mcpUrl, calendar, initialKeys, tools }
         </div>
       </section>
 
-      {/* Calendar ------------------------------------------------------ */}
-      <section className="rounded-lg border border-zinc-800 bg-zinc-950 p-6">
-        <h2 className="text-sm font-semibold text-zinc-100">Calendar subscription</h2>
-        <p className="mt-1 text-xs text-zinc-400">
-          Add this link to Google or Apple Calendar to follow the films you joined.
-        </p>
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            readOnly
-            value={calendar.icsUrl}
-            onFocus={(e) => e.currentTarget.select()}
-            className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-black px-3 py-2 font-mono text-xs text-zinc-300"
-          />
-          <CopyButton value={calendar.icsUrl} />
-        </div>
-      </section>
+
     </div>
   );
 }

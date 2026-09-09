@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { FilmQuickActions } from "@/app/components/FilmQuickActions";
+import { goingTo } from "@/lib/board-discovery";
+import { BoardSpotlight } from "./BoardSpotlight";
 import { PollVoter, type Poll } from "@/app/components/PollVoter";
 import { useLiveUpdates } from "@/app/components/useLiveUpdates";
 
@@ -13,7 +16,9 @@ type Attendee = {
   image: string | null;
 };
 
-type Film = {
+export type Film = {
+  isMajorRelease?: boolean;
+  backdropUrl?: string | null;
   id: number;
   title: string;
   description: string | null;
@@ -44,9 +49,16 @@ type ApiResponse = {
   hasMore?: boolean;
   currentUserEmail?: string | null;
   baseUrl?: string;
+  now?: string;
 };
 
-export function BoardClient({ initial }: { initial: ApiResponse }) {
+export function BoardClient({ initial, preview = false }: { initial: ApiResponse; preview?: boolean }) {
+  const [now, setNow] = useState(() => new Date(initial.now ?? Date.now()));
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const filmHref = (id: number) => preview ? `/preview?film=${id}` : `/film/${id}`;
   const router = useRouter();
   const [films, setFilms] = useState<Film[]>(initial.films);
   const [view, setView] = useState<"list" | "grid">("list");
@@ -63,6 +75,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
     setView(next);
     try { localStorage.setItem("movie-planner-view", next); } catch {}
   }
+  const [onlyLiked, setOnlyLiked] = useState(false);
   const [showPast, setShowPast] = useState(false);
   const [showPastReleases, setShowPastReleases] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
@@ -80,7 +93,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
       liveRefreshTimeout.current = null;
     }, 350);
   }, [router]);
-  useLiveUpdates(refreshLive);
+  useLiveUpdates(refreshLive, !preview);
 
   function hasFilmEnded(date: string | null, endTime: string | null) {
     if (!date) return false;
@@ -111,8 +124,13 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   }
 
   async function toggleGoing(filmId: number, currentlyGoing: boolean) {
+    if (preview) {
+      setFilms(previous => previous.map(film => film.id === filmId ? { ...film, isGoing: !currentlyGoing, goingUsers: currentlyGoing ? film.goingUsers.filter(person => person.id !== -1) : [...film.goingUsers, { id: -1, name: "You", email: "preview@example.com", image: null }] } : film));
+      return;
+    }
     const method = currentlyGoing ? "DELETE" : "POST";
     const res = await fetch(`/api/films/${filmId}/attend?type=going`, { method });
+    if (!res.ok) throw new Error("Could not save your choice");
     if (res.ok) {
       const data = await res.json();
       setFilms((prev) =>
@@ -131,8 +149,13 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   }
 
   async function toggleInterested(filmId: number, currentlyInterested: boolean) {
+    if (preview) {
+      setFilms(previous => previous.map(film => film.id === filmId ? { ...film, isInterested: !currentlyInterested, interestedUsers: currentlyInterested ? film.interestedUsers.filter(person => person.id !== -1) : [...film.interestedUsers, { id: -1, name: "You", email: "preview@example.com", image: null }] } : film));
+      return;
+    }
     const method = currentlyInterested ? "DELETE" : "POST";
     const res = await fetch(`/api/films/${filmId}/attend?type=interested`, { method });
+    if (!res.ok) throw new Error("Could not save your choice");
     if (res.ok) {
       const data = await res.json();
       setFilms((prev) =>
@@ -194,11 +217,12 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   // --- DERIVED STATE ---
   const today = new Date().toISOString().split("T")[0];
 
-  const pastFilms = films.filter(f => f.date && f.date < today);
+  const visibleFilms = onlyLiked ? films.filter(film => film.isInterested) : films;
+  const pastFilms = visibleFilms.filter(f => f.date && f.date < today);
   // Past releases: no screening date, but release date is in the past
-  const pastReleaseFilms = films.filter(f => !f.date && f.releaseDate && f.releaseDate < today);
+  const pastReleaseFilms = visibleFilms.filter(f => !f.date && f.releaseDate && f.releaseDate < today);
   // Upcoming = Future/today screening date OR no screening date and no past release date (true TBA)
-  const upcomingFilms = films.filter(f =>
+  const upcomingFilms = visibleFilms.filter(f =>
     (f.date && f.date >= today) || (!f.date && (!f.releaseDate || f.releaseDate >= today))
   );
 
@@ -225,11 +249,15 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
     return a.localeCompare(b);
   });
 
+  const renderActions = (film: Film, compact = false) => (
+    <FilmQuickActions title={film.title} liked={film.isInterested} going={film.isGoing} hasScreening={!!film.date} hasPoll={!!film.poll} likes={film.interestedUsers.length} goingCount={goingTo(film).length} href={filmHref(film.id)} onLike={() => toggleInterested(film.id, film.isInterested)} onGoing={() => toggleGoing(film.id, film.isGoing)} compact={compact} />
+  );
+
   const renderGrid = (items: Film[]) => (
     <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
       {items.map((film) => (
         <article key={film.id} className="group min-w-0">
-          <Link href={`/film/${film.id}`} className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300">
+          <Link href={filmHref(film.id)} className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300">
             <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
               {film.posterUrl ? (
                 <img src={film.posterUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 motion-safe:group-hover:scale-105" referrerPolicy="no-referrer" />
@@ -239,7 +267,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                   <span className="text-sm font-medium text-zinc-500">{film.title}</span>
                 </div>
               )}
-              {film.isGoing && <span className="absolute left-2 top-2 rounded-md bg-amber-300 px-2 py-1 text-[10px] font-bold text-zinc-950">You’re going</span>}
+              {film.isGoing && <span className="absolute left-2 top-2 grid h-7 w-7 place-items-center rounded-full bg-black/80 text-[var(--cinema-accent,#e4ff6a)]" title="You’re going" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4Z" /><path d="m8 12 2.5 2.5L16 9" strokeLinecap="round" /></svg></span>}
               {film.averageRating !== null && <span className="absolute bottom-2 right-2 rounded-md bg-black/85 px-2 py-1 text-xs font-medium text-amber-300">★ {film.averageRating.toFixed(1)}</span>}
             </div>
             <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-snug text-zinc-100">{film.title}</h3>
@@ -249,9 +277,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
             </p>
             {film.poll && <p className="mt-1 text-xs text-amber-300">Vote on a date →</p>}
           </Link>
-          <button type="button" aria-pressed={film.isInterested} aria-label={`${film.isInterested ? "Remove interest in" : "Interested in"} ${film.title}`} onClick={() => toggleInterested(film.id, film.isInterested)} className={`mt-2 flex min-h-11 w-full items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors ${film.isInterested ? "border-amber-300/30 bg-amber-300/10 text-amber-200" : "border-zinc-800 text-zinc-400 hover:bg-zinc-900"}`}>
-            {film.isInterested ? "★ Interested" : "☆ Interested"}{film.interestedUsers.length > 0 && ` · ${film.interestedUsers.length}`}
-          </button>
+          {renderActions(film, true)}
         </article>
       ))}
     </div>
@@ -302,7 +328,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
             >
               <div className="flex flex-wrap gap-4 p-3 sm:flex-nowrap sm:gap-6">
                 <Link
-                  href={`/film/${film.id}`}
+                  href={filmHref(film.id)}
                   className="relative aspect-[2/3] self-start w-20 flex-none cursor-pointer overflow-hidden rounded-lg bg-zinc-800 shadow-lg sm:w-32"
                 >
                   {/* Poster content */}
@@ -328,7 +354,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                 </Link>
 
                 <div className="contents sm:flex sm:min-w-0 sm:flex-1 sm:flex-col sm:justify-between sm:py-1">
-                  <Link href={`/film/${film.id}`} className="block min-w-0 flex-1 space-y-2">
+                  <Link href={filmHref(film.id)} className="block min-w-0 flex-1 space-y-2">
                     <div>
                       <h3 className="break-words text-base font-bold text-zinc-100 group-hover:text-white">
                         {film.title}
@@ -391,59 +417,15 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                       </div>
                     )}
 
-                    {/* Interested row — always visible */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {film.interestedUsers.length > 0 ? (
-                          <>
-                            <div className="flex -space-x-2 overflow-hidden">
-                              {film.interestedUsers.slice(0, 5).map((u) => (
-                                <div key={u.id} className="inline-block h-7 w-7 rounded-full ring-2 ring-zinc-950" title={u.name || u.email}>
-                                  {u.image ? (
-                                    <img src={u.image} alt="" className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-[10px] font-bold text-white">{u.name?.[0] || u.email[0]}</div>
-                                  )}
-                                </div>
-                              ))}
-                              {film.interestedUsers.length > 5 && (
-                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-950">
-                                  <span className="text-[10px] font-medium text-white">+{film.interestedUsers.length - 5}</span>
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-xs text-zinc-500">{film.interestedUsers.length} interested</span>
-                          </>
-                        ) : (
-                          <span className="text-xs text-zinc-600 italic">No one interested yet</span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => toggleInterested(film.id, film.isInterested)}
-                        className={`flex items-center gap-1.5 rounded-lg border min-h-11 px-3 py-1.5 text-xs font-semibold transition-all ${
-                          film.isInterested
-                            ? "border-zinc-600 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
-                            : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-                        }`}
-                      >
-                        {film.isInterested ? (
-                          <>
-                            <svg className="h-3 w-3 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>
-                            Interested
-                          </>
-                        ) : (
-                          <>
-                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" /></svg>
-                            I&apos;m interested
-                          </>
-                        )}
-                      </button>
+                      {renderActions(film)}
+                      {goingTo(film).length > 0 && <span className="text-xs text-zinc-500">{goingTo(film).length} going</span>}
                     </div>
 
                     {/* Poll: vote on a screening time */}
                     {film.poll && (
                       <div className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-950/40 p-4">
-                        <PollVoter filmId={film.id} poll={film.poll} canVote compact />
+                        <PollVoter filmId={film.id} poll={film.poll} canVote={!preview} compact />
                         {film.inviteToken && (
                           <button
                             onClick={() => copyInviteLink(film)}
@@ -459,64 +441,8 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                       </div>
                     )}
 
-                    {/* Screening date: going + invite row */}
-                    {!film.poll && film.date && (
-                      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-                        {film.goingUsers.length > 0 ? (
-                          <div className="flex -space-x-2 overflow-hidden">
-                            {film.goingUsers.slice(0, 5).map((u) => (
-                              <div key={u.id} className="relative inline-block h-8 w-8 rounded-full ring-2 ring-zinc-950" title={u.name || u.email}>
-                                {u.image ? (
-                                  <img src={u.image} alt="" className="h-full w-full rounded-full object-cover" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-[10px] font-bold text-white">{u.name?.[0] || u.email[0]}</div>
-                                )}
-                              </div>
-                            ))}
-                            {film.goingUsers.length > 5 && (
-                              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 ring-2 ring-zinc-950">
-                                <span className="text-[10px] font-medium text-white">+{film.goingUsers.length - 5}</span>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-zinc-500 italic">No one going yet</span>
-                        )}
-                        <div className="flex flex-wrap items-center gap-2">
-                          <button
-                            onClick={() => toggleGoing(film.id, film.isGoing)}
-                            className={`group/btn relative flex items-center justify-center gap-2 rounded-lg min-h-11 px-4 py-2 text-sm font-semibold transition-all ${film.isGoing
-                              ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
-                              : "bg-white text-zinc-950 shadow-sm hover:bg-zinc-200"
-                              }`}
-                          >
-                            <span>{film.isGoing ? "I'm going" : "Join Screening"}</span>
-                          </button>
-                          {film.inviteToken && (
-                            <button
-                              onClick={() => copyInviteLink(film)}
-                              title="Copy invite link"
-                              className={`flex items-center gap-1.5 rounded-lg border min-h-11 px-3 py-2 text-xs font-semibold transition-all ${
-                                copiedInviteId === film.id
-                                  ? "border-green-500/50 bg-green-500/10 text-green-400"
-                                  : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
-                              }`}
-                            >
-                              {copiedInviteId === film.id ? (
-                                <>
-                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                                  Copied!
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" /></svg>
-                                  Invite
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                    {!film.poll && film.inviteToken && (
+                      <button type="button" onClick={() => copyInviteLink(film)} className="inline-flex min-h-11 items-center text-xs text-zinc-500 hover:text-zinc-200">{copiedInviteId === film.id ? "Invite link copied" : "Invite friends ↗"}</button>
                     )}
                   </div>
                 </div>
@@ -529,27 +455,32 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   };
 
   return (
-    <div className="mx-auto space-y-8 pb-4">
-      <div className="space-y-5">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300">Better together</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">Movie board</h1>
+    <div className="pb-4">
+      <BoardSpotlight
+        films={films}
+        now={now}
+        preview={preview}
+        onLike={(film) => toggleInterested(film.id, film.isInterested)}
+        onGoing={(film) => toggleGoing(film.id, film.isGoing)}
+      />
+      <div id="all-films" className="board-catalog scroll-mt-6 space-y-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-x-4 gap-y-1" role="group" aria-label="Filter films">
+            <button type="button" aria-pressed={!onlyLiked} onClick={() => setOnlyLiked(false)} className={`min-h-11 border-b-2 text-xs ${!onlyLiked ? "border-lime-200 text-zinc-100" : "border-transparent text-zinc-500"}`}>All films</button>
+            <button type="button" aria-pressed={onlyLiked} onClick={() => setOnlyLiked(true)} className={`min-h-11 border-b-2 text-xs ${onlyLiked ? "border-lime-200 text-zinc-100" : "border-transparent text-zinc-500"}`}>Liked movies</button>
           </div>
-          <Link href="/my-films" className="inline-flex min-h-11 shrink-0 items-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-zinc-950 hover:bg-amber-200">+ Add film</Link>
-        </div>
-        <div className="flex items-center justify-between gap-3 border-b border-zinc-800 pb-4">
-          <p className="text-sm text-zinc-500">{films.length} {films.length === 1 ? "film" : "films"} on the board</p>
-          <div role="group" aria-label="Film display" className="flex shrink-0 rounded-xl border border-zinc-800 bg-zinc-950 p-1">
-            {(["list", "grid"] as const).map((mode) => (
-              <button key={mode} type="button" aria-pressed={view === mode} onClick={() => changeView(mode)} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-amber-300 ${view === mode ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
-                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">{mode === "list" ? <path d="M7 5h10M7 10h10M7 15h10M3 5h1M3 10h1M3 15h1" /> : <><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="12" y="3" width="5" height="5" rx="1" /><rect x="3" y="12" width="5" height="5" rx="1" /><rect x="12" y="12" width="5" height="5" rx="1" /></>}</svg>
-                {mode === "list" ? "List" : "Grid"}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <Link href="/my-films" className="hidden min-h-11 shrink-0 items-center rounded-full bg-zinc-100 px-4 text-sm font-semibold text-zinc-950 hover:bg-white sm:inline-flex">Add film</Link>
+            <div role="group" aria-label="Film display" className="flex shrink-0 rounded-xl border border-zinc-800 bg-zinc-950 p-1">
+              {(["list", "grid"] as const).map((mode) => (
+                <button key={mode} type="button" aria-label={mode === "list" ? "List" : "Grid"} aria-pressed={view === mode} onClick={() => changeView(mode)} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-amber-300 ${view === mode ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+                  <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">{mode === "list" ? <path d="M7 5h10M7 10h10M7 15h10M3 5h1M3 10h1M3 15h1" /> : <><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="12" y="3" width="5" height="5" rx="1" /><rect x="3" y="12" width="5" height="5" rx="1" /><rect x="12" y="12" width="5" height="5" rx="1" /></>}</svg>
+                  <span className="hidden sm:inline">{mode === "list" ? "List" : "Grid"}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
       {/* UPCOMING FILMS */}
       {upcomingDates.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 py-20 text-center">
@@ -559,8 +490,8 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
             </svg>
           </div>
-          <p className="text-lg font-medium text-zinc-200">No upcoming screenings</p>
-          <p className="text-sm text-zinc-500">Add a film to kickstart the schedule</p>
+          <p className="text-lg font-medium text-zinc-200">{onlyLiked ? "No upcoming liked movies" : "No upcoming screenings"}</p>
+          <p className="text-sm text-zinc-500">{onlyLiked ? "Tap a heart to save a film here" : "Add a film to kickstart the schedule"}</p>
         </div>
       ) : (
         view === "grid" ? renderGrid(upcomingDates.flatMap(date => upcomingGrouped[date])) : upcomingDates.map(date => renderDateGroup(date, upcomingGrouped[date]))
@@ -647,8 +578,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
           )}
         </div>
       )}
-
-
+      </div>
     </div>
   );
 }

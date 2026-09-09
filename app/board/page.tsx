@@ -118,6 +118,7 @@ export default async function BoardPage() {
         startTime,
         endTime,
         posterUrl: signedPosterUrl,
+        backdropUrl: await signPosterUrl(film.backdropUrl),
         goingUsers,
         interestedUsers,
         isGoing,
@@ -154,18 +155,19 @@ export default async function BoardPage() {
   const icsUrl = `${baseUrl.replace(/\/$/, "")}/api/calendar/feed.ics?userId=${userSettings.icsShareId}`;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div>
       <BoardClient
         initial={{
           films: filmsWithAttendees,
+          now: new Date().toISOString(),
           hasMore: false,
           currentUserEmail: session.user.email,
           baseUrl,
         }}
       />
-      <details className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
-        <summary className="cursor-pointer py-2 text-sm font-medium text-zinc-300">Sync with your calendar</summary>
-        <div className="mt-3 space-y-3">
+      <details className="mx-auto max-w-3xl px-[4vw] pb-10">
+        <summary className="cursor-pointer py-3 text-sm font-medium text-zinc-400">Sync with your calendar</summary>
+        <div className="mt-3 space-y-3 rounded-xl border border-zinc-800 bg-zinc-950 p-4">
           <p className="text-sm text-zinc-500">Subscribe to the films you’re attending.</p>
           <CalendarSubscription icsUrl={icsUrl} />
         </div>

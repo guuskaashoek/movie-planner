@@ -4,6 +4,7 @@ import {
   boardSettings,
   comments,
   filmRatings,
+  filmTickets,
   films,
   pollOptions,
   pollVotes,
@@ -16,6 +17,7 @@ import { importPosterFromUrl } from "@/lib/images";
 import { getPollData } from "@/lib/poll";
 import { getComments } from "@/lib/comments";
 import { publishLiveEvent } from "@/lib/live";
+import { mayViewAdmissionTickets } from "@/lib/ticket-access";
 import { type Actor, canManageFilm, canManageComment, resolveRole } from "@/lib/authz";
 
 /**
@@ -173,6 +175,18 @@ async function buildFilmView(
 
   const poll = await getPollData(film.id, film.allowMultiVote, actor.userId);
   const posterUrl = await signPosterUrl(film.posterUrl);
+  const maySeeTickets = mayViewAdmissionTickets({
+    isDirectlyGoing: going.some((a) => a.id === actor.userId),
+    votedForWinningPollOption:
+      poll?.options.some((option) => option.isWinning && option.votedByMe) ?? false,
+  });
+  const ticketRows = maySeeTickets
+    ? await db
+        .select({ id: filmTickets.id, label: filmTickets.label })
+        .from(filmTickets)
+        .where(eq(filmTickets.filmId, film.id))
+        .orderBy(filmTickets.id)
+    : [];
 
   return {
     id: film.id,
@@ -190,6 +204,8 @@ async function buildFilmView(
       ? `${film.ticketsOnSaleDate}${film.ticketsOnSaleTime ? `T${film.ticketsOnSaleTime}` : ""}`
       : null,
     posterUrl,
+    backdropUrl: await signPosterUrl(film.backdropUrl),
+    isMajorRelease: film.isMajorRelease,
     posterStoredUrl: film.posterUrl,
     inviteToken: film.inviteToken,
     allowMultiVote: film.allowMultiVote,
@@ -206,6 +222,7 @@ async function buildFilmView(
     averageRating,
     hasEnded: hasFilmEnded(film.date, film.endTime),
     poll,
+    tickets: ticketRows,
     canManage: canManageFilm(actor, film),
     ...(opts.includeComments ? { comments: await getComments(film.id) } : {}),
   };
@@ -308,6 +325,10 @@ export type CreateFilmInput = {
   ticketsUrl?: string | null;
   /** Any public image URL; it is downloaded and re-hosted in our bucket. */
   posterUrl?: string | null;
+  /** Wide cinematic image, imported through the same safe image pipeline. */
+  backdropUrl?: string | null;
+  /** Prioritize this film in the home spotlight while it is upcoming. */
+  isMajorRelease?: boolean;
   allowMultiVote?: boolean;
   pollOptions?: PollOptionInput[];
   /** Admin only: create the film on behalf of another user (id or email). */
@@ -331,6 +352,9 @@ export async function createFilm(actor: Actor, input: CreateFilmInput) {
   assertTime(input.endTime, "endTime");
   assertTime(input.ticketsOnSaleTime, "ticketsOnSaleTime");
   assertTicketsUrl(input.ticketsUrl);
+  if (input.isMajorRelease !== undefined && typeof input.isMajorRelease !== "boolean") {
+    throw new ServiceError("isMajorRelease must be a boolean", 400);
+  }
 
   let createdBy = actor.userId;
   if (input.ownerRef != null && input.ownerRef !== "") {
@@ -342,6 +366,9 @@ export async function createFilm(actor: Actor, input: CreateFilmInput) {
   if (normalise(input.posterUrl)) {
     posterUrl = (await importPosterFromUrl(input.posterUrl!)).url;
   }
+
+  const backdropUrl = normalise(input.backdropUrl)
+    ? (await importPosterFromUrl(input.backdropUrl!)).url : null;
 
   const [inserted] = await db
     .insert(films)
@@ -357,6 +384,8 @@ export async function createFilm(actor: Actor, input: CreateFilmInput) {
       ticketsOnSaleTime: normalise(input.ticketsOnSaleTime),
       ticketsUrl: normalise(input.ticketsUrl),
       posterUrl,
+      backdropUrl,
+      isMajorRelease: input.isMajorRelease ?? false,
       allowMultiVote: input.allowMultiVote ?? false,
       createdBy,
       inviteToken: randomBytes(16).toString("hex"),
@@ -388,6 +417,8 @@ export type UpdateFilmInput = Partial<
     | "ticketsOnSaleTime"
     | "ticketsUrl"
     | "posterUrl"
+    | "backdropUrl"
+    | "isMajorRelease"
     | "allowMultiVote"
   >
 >;
@@ -404,6 +435,14 @@ export async function updateFilm(actor: Actor, filmId: number, patch: UpdateFilm
   assertTicketsUrl(patch.ticketsUrl);
 
   const update: Record<string, unknown> = {};
+  if (patch.isMajorRelease !== undefined) {
+    if (typeof patch.isMajorRelease !== "boolean") throw new ServiceError("isMajorRelease must be a boolean", 400);
+    update.isMajorRelease = patch.isMajorRelease;
+  }
+  if (patch.backdropUrl !== undefined) {
+    const raw = normalise(patch.backdropUrl);
+    update.backdropUrl = raw ? (await importPosterFromUrl(raw)).url : null;
+  }
 
   if (patch.title !== undefined) {
     const title = normalise(patch.title);
@@ -453,6 +492,63 @@ export async function setFilmPoster(actor: Actor, filmId: number, url: string) {
     reused: imported.reused,
     viewUrl: await signPosterUrl(imported.url),
   };
+}
+
+export async function addFilmTicket(
+  actor: Actor,
+  filmId: number,
+  input: { label?: string | null; imageUrl: string }
+) {
+  await loadManageableFilm(actor, filmId);
+  const label = normalise(input.label) ?? "Cinema ticket";
+  if (label.length > 80) throw new ServiceError("Ticket label may be at most 80 characters", 400);
+  const rawUrl = normalise(input.imageUrl);
+  if (!rawUrl) throw new ServiceError("imageUrl is required", 400);
+  const imported = await importPosterFromUrl(rawUrl);
+  const [ticket] = await db
+    .insert(filmTickets)
+    .values({ filmId, label, imageUrl: imported.url, createdBy: actor.userId })
+    .returning({ id: filmTickets.id, label: filmTickets.label });
+  publishLiveEvent({ topic: "film", filmId });
+  return { ...ticket, filmId, stored: true };
+}
+
+export async function deleteFilmTicket(actor: Actor, filmId: number, ticketId: number) {
+  await loadManageableFilm(actor, filmId);
+  const [ticket] = await db
+    .select({ id: filmTickets.id, label: filmTickets.label })
+    .from(filmTickets)
+    .where(and(eq(filmTickets.id, ticketId), eq(filmTickets.filmId, filmId)))
+    .limit(1);
+  if (!ticket) throw new ServiceError(`Film ${filmId} has no ticket ${ticketId}`, 404);
+  await db.delete(filmTickets).where(eq(filmTickets.id, ticketId));
+  publishLiveEvent({ topic: "film", filmId });
+  return { deleted: true, filmId, ticketId, label: ticket.label };
+}
+
+/** Resolve the protected image only after checking current attendance. */
+export async function getFilmTicketForViewer(actor: Actor, filmId: number, ticketId: number) {
+  const film = await loadFilm(filmId);
+  const [directAttendance] = await db
+    .select({ id: attendees.id })
+    .from(attendees)
+    .where(and(eq(attendees.filmId, filmId), eq(attendees.userId, actor.userId), eq(attendees.type, "going")))
+    .limit(1);
+  const poll = await getPollData(filmId, film.allowMultiVote, actor.userId);
+  const votedForWinner = poll?.options.some((option) => option.isWinning && option.votedByMe) ?? false;
+  if (!mayViewAdmissionTickets({
+    isDirectlyGoing: Boolean(directAttendance),
+    votedForWinningPollOption: votedForWinner,
+  })) {
+    throw new ServiceError("Mark yourself as going before opening tickets", 403);
+  }
+  const [ticket] = await db
+    .select({ id: filmTickets.id, label: filmTickets.label, imageUrl: filmTickets.imageUrl })
+    .from(filmTickets)
+    .where(and(eq(filmTickets.id, ticketId), eq(filmTickets.filmId, filmId)))
+    .limit(1);
+  if (!ticket) throw new ServiceError(`Film ${filmId} has no ticket ${ticketId}`, 404);
+  return { ...ticket, signedUrl: await signPosterUrl(ticket.imageUrl) };
 }
 
 export async function deleteFilm(actor: Actor, filmId: number) {

@@ -27,3 +27,26 @@ body {
 
 button, a, summary { -webkit-tap-highlight-color: transparent; }
 button { touch-action: manipulation; }
+
+.site-header { position:relative; z-index:30; background:#080a07; border-bottom:1px solid #ffffff0a; }
+.site-header.is-overlay { position:absolute; top:0; left:0; right:0; background:linear-gradient(180deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.28) 62%, transparent 100%); border-bottom:0; }
+.site-header-inner { max-width:1280px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px 4vw; }
+.site-brand { display:flex; align-items:center; min-height:44px; gap:8px; font-size:19px; font-weight:700; letter-spacing:-.06em; }
+.preview-flag { margin-left:4px; color:#9aa090; font-size:10px; font-weight:500; letter-spacing:.04em; }
+.desktop-nav { display:flex; gap:24px; align-items:center; }
+.desktop-nav a { display:inline-flex; min-height:44px; align-items:center; color:#8e9287; font-size:13px; }
+.desktop-nav a[aria-current="page"] { color:#eef3e2; }
+.mobile-nav,.mobile-add { display:none; }
+.page-frame { max-width:42rem; margin:0 auto; padding:24px 16px 56px; }
+.page-frame-wide { max-width:64rem; margin:0 auto; padding:24px 16px 56px; }
+@media (max-width:639px) {
+  body { padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
+  .site-header-inner { padding:7px 16px; }
+  .site-brand { font-size:18px; }
+  .site-brand img { width:26px; height:26px; }
+  .desktop-nav { display:none; }
+  .mobile-add { display:grid; place-items:center; width:44px; height:44px; border:1px solid #ffffff15; border-radius:50%; color:#d7dec7; }
+  .mobile-nav { position:fixed; z-index:50; bottom:0; left:0; right:0; display:flex; justify-content:space-around; gap:6px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); border-top:1px solid #ffffff10; background:#10120ff2; backdrop-filter:blur(20px); }
+  .mobile-nav a { flex:1; display:flex; align-items:center; justify-content:center; gap:4px; flex-direction:column; min-height:48px; color:#767d6b; font-size:10px; }
+  .mobile-nav a[aria-current="page"] { color:#d9f36a; }
+}

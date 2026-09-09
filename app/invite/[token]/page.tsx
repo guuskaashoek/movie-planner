@@ -116,7 +116,7 @@ export default async function InvitePage({
   const comments = await getComments(film.id);
 
   return (
-    <div className="mx-auto max-w-lg py-8">
+    <div className="page-frame">
       {/* Header */}
       <div className="mb-8 text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
@@ -240,7 +240,7 @@ export default async function InvitePage({
               {interestedAttendees.length > 0 && (
                 <div>
                   <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-                    {interestedAttendees.length} {interestedAttendees.length === 1 ? "person" : "people"} interested
+                    {interestedAttendees.length} {interestedAttendees.length === 1 ? "person likes" : "people like"} this
                   </p>
                   <div className="flex -space-x-2">
                     {interestedAttendees.slice(0, 8).map((a) => (
@@ -292,7 +292,7 @@ export default async function InvitePage({
             ) : !film.date ? (
               <div className="space-y-2 text-center">
                 <p className="text-sm text-zinc-400">No screening planned yet</p>
-                <p className="text-xs text-zinc-600">Sign in on the board to mark yourself as interested</p>
+                <p className="text-xs text-zinc-600">Sign in on the board to like this film</p>
               </div>
             ) : isAlreadyAttending ? (
               <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-5 py-4">

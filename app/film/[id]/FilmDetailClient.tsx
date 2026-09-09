@@ -37,6 +37,7 @@ export type FilmDetailInitial = {
   goingUsers: Attendee[];
   interestedUsers: Attendee[];
   isGoing: boolean;
+  tickets: { id: number; label: string }[];
   isInterested: boolean;
   canRate: boolean;
   myRating: number | null;
@@ -113,6 +114,8 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
       const data = await res.json();
       setGoingUsers(data.attendees ?? goingUsers);
       setIsGoing(!isGoing);
+      // Refresh protected ticket metadata immediately after attendance changes.
+      router.refresh();
     }
   }
 
@@ -150,7 +153,7 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
   }
 
   return (
-    <div className="mx-auto max-w-5xl pb-24">
+    <div className="pb-8">
       <Link
         href="/board"
         className="mb-6 inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition-colors hover:text-zinc-200"
@@ -276,10 +279,33 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
             ) : (
               <div className="text-center">
                 <p className="text-sm text-zinc-400">No screening planned yet</p>
-                <p className="mt-1 text-xs text-zinc-600">Mark yourself interested so the group knows you want to watch</p>
+                <p className="mt-1 text-xs text-zinc-600">Like this film so the group knows you want to watch</p>
               </div>
             )}
           </section>
+
+          {isGoing && initial.tickets.length > 0 && (
+            <section className="rounded-2xl border border-lime-200/20 bg-lime-200/5 p-5 sm:p-6">
+              <h2 className="text-lg font-semibold text-zinc-100">Your tickets</h2>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                Open the original ticket at the cinema. Keep the QR code private.
+              </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {initial.tickets.map((ticket) => (
+                  <a
+                    key={ticket.id}
+                    href={`/api/films/${film.id}/tickets/${ticket.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-h-12 items-center justify-between rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-950 hover:bg-white"
+                  >
+                    <span>{ticket.label}</span>
+                    <span aria-hidden="true">↗</span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Comments */}
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6">
@@ -315,15 +341,15 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
-                Interested {interestedUsers.length > 0 && <span className="text-zinc-400">· {interestedUsers.length}</span>}
+                Liked by {interestedUsers.length > 0 && <span className="text-zinc-400">· {interestedUsers.length}</span>}
               </h2>
               <button
                 onClick={toggleInterested}
                 className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
-                  isInterested ? "border-amber-500/40 bg-amber-500/10 text-amber-300" : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                  isInterested ? "border-rose-400/40 bg-rose-400/10 text-rose-300" : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-zinc-200"
                 }`}
               >
-                {isInterested ? "★ Interested" : "☆ Interested"}
+                {isInterested ? "♥ Liked" : "♡ Like"}
               </button>
             </div>
             {interestedUsers.length > 0 ? (
@@ -331,7 +357,7 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
                 {interestedUsers.map((u) => <PersonRow key={u.id} user={u} />)}
               </div>
             ) : (
-              <p className="text-sm italic text-zinc-600">No one interested yet</p>
+              <p className="text-sm italic text-zinc-600">No likes yet</p>
             )}
           </section>
 

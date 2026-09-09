@@ -712,7 +712,7 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
   }, [films]);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-12 pb-24">
+    <div className="page-frame space-y-12">
       {/* --- FORM SECTION --- */}
       <section className="relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40 p-6 backdrop-blur-sm transition-all hover:bg-zinc-900/60 sm:p-8">
         <div className="mb-8">

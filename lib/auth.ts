@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import { db } from "@/lib/db/client";
 import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export const {
   auth,
@@ -31,16 +31,17 @@ export const {
       const existing = await db
         .select()
         .from(users)
-        .where(eq(users.googleId, googleId));
+        .where(sql`lower(${users.email}) = ${email.toLowerCase()}`)
+        .limit(1);
 
       if (existing.length === 0) {
-        await db.insert(users).values({
-          email,
-          googleId,
-          name,
-          image,
-        });
+        // Registrations are closed. Existing users can still sign in normally.
+        return false;
       }
+
+      // Keep the profile fresh and attach the current Google account to the
+      // existing allow-listed email. No account is created here.
+      await db.update(users).set({ googleId, name, image }).where(eq(users.id, existing[0].id));
 
       return true;
     },
@@ -52,11 +53,19 @@ export const {
         const googleId = account.providerAccountId;
         console.log("JWT callback - initial sign in, googleId:", googleId);
 
-        const existing = await db
+        let existing = await db
           .select()
           .from(users)
           .where(eq(users.googleId, googleId))
           .limit(1);
+
+        if (!existing[0] && profile.email) {
+          existing = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, String(profile.email).toLowerCase()))
+            .limit(1);
+        }
 
         console.log("JWT callback - found user:", existing[0]?.id);
 
@@ -117,4 +126,3 @@ export const {
     },
   },
 });
-

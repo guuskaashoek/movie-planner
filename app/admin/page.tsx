@@ -17,6 +17,7 @@ export default async function AdminPage() {
   ]);
 
   return (
+    <div className="page-frame-wide">
     <AdminClient
       currentUserId={actor.userId}
       stats={stats}
@@ -39,5 +40,6 @@ export default async function AdminPage() {
       }))}
       total={films.total}
     />
+    </div>
   );
 }

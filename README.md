@@ -377,3 +377,48 @@ download is capped at 10MB.
 - No gradients: only solid colors and borders.
 - Tailwind v4 is wired via `app/globals.css` (no standalone `tailwind.config.js` required).
 
+
+
+## Homepage spotlight and local design preview
+
+The signed-in homepage opens the movie board. Its spotlight prioritizes upcoming
+films marked `isMajorRelease`, then films with at least two people going, then
+attendance and interest, with date and ID as stable tie-breakers. Poll films use
+the voters on the leading option. Past screenings never feature.
+
+MCP `create_film` and `update_film` accept:
+
+- `isMajorRelease`: boolean; set `false` to remove the editorial priority.
+- `backdropUrl`: a wide film still, downloaded and re-hosted through the same
+  validated image pipeline as posters. An empty string clears it. Without a
+  backdrop, the hero uses the poster.
+
+The ticket window uses the existing sale date, time and booking link. Times are
+interpreted in Europe/Amsterdam; a sale date without a time does not claim that
+sales have started today. “Sales started” describes the configured time, not live
+seat availability. Ticket fields are also saved through the web create/edit API.
+
+Run `npm run dev` and open `http://localhost:3000/preview` for a signed-out design
+preview. It uses sample screenings, names and ticket dates, and local artwork.
+Interest and attendance toggles only change preview state. The preview returns
+404 in production and does not grant access to authenticated routes.
+
+Selection regression checks (Node 22.6+):
+
+```sh
+node --experimental-strip-types --test tests/board-discovery.test.mjs
+```
+
+## Admission tickets and closed registration
+
+New registrations are disabled in the Google sign-in callback. Only an email
+already present in `users` can sign in; existing accounts keep working.
+
+MCP can attach original ticket images with `add_film_ticket` and remove them
+with `delete_film_ticket`. Ticket QR codes are stored exactly as uploaded and
+are never reconstructed. Film responses expose only ticket ids and labels, and
+only to a member marked as going. Opening the protected ticket route performs
+the attendance check again before issuing a short-lived storage redirect.
+Supported ticket uploads are original JPEG, PNG, WebP and AVIF images. PDF
+tickets should be exported or captured as an image without cropping or changing
+the QR code.
