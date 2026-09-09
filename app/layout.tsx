@@ -16,7 +16,23 @@ const display = Big_Shoulders({
 export const metadata: Metadata = {
   title: "Movie Planner",
   description: "Plan your next movie night together.",
-  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
+  applicationName: "Movie Planner",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Movie Planner",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: { telephone: false },
+  other: {
+    "apple-mobile-web-app-capable": "yes",
+  },
 };
 
 export const viewport: Viewport = {

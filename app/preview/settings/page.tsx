@@ -8,6 +8,15 @@ export default function PreviewSettings() {
     <div className="page-frame space-y-6">
       <Link href="/preview" className="inline-flex min-h-11 items-center text-sm text-zinc-400">← Back to films</Link>
       <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-950 p-5">
+        <div>
+          <h2 className="text-lg font-semibold">Add to Home Screen</h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            On iPhone, open Movie Planner in Safari, tap the Share button, then{" "}
+            <span className="text-zinc-200">Add to Home Screen</span>. It opens like an app, without the Safari bars.
+          </p>
+        </div>
+      </section>
       <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5">
         <div>
           <h2 className="text-lg font-semibold">Connect your calendar</h2>

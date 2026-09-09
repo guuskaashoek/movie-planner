@@ -126,6 +126,16 @@ export function SettingsClient({ account, mcpUrl, calendar, initialKeys, tools }
         </p>
       </header>
 
+      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-100">Add to Home Screen</h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            On iPhone, open Movie Planner in Safari, tap the Share button, then{" "}
+            <span className="text-zinc-200">Add to Home Screen</span>. It opens like an app, without the Safari bars.
+          </p>
+        </div>
+      </section>
+
       <section className="space-y-4 rounded-xl border border-zinc-800 bg-zinc-950 p-5 sm:p-6">
         <div>
           <h2 className="text-lg font-semibold text-zinc-100">Connect your calendar</h2>

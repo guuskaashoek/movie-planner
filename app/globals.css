@@ -29,7 +29,48 @@ button, a, summary { -webkit-tap-highlight-color: transparent; }
 button { touch-action: manipulation; }
 
 .site-header { position:relative; z-index:30; background:#080a07; border-bottom:1px solid #ffffff0a; }
-.site-header.is-overlay { position:absolute; top:0; left:0; right:0; background:linear-gradient(180deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.28) 62%, transparent 100%); border-bottom:0; }
+.site-header.is-overlay { position:absolute; top:0; left:0; right:0; padding-top:env(safe-area-inset-top, 0px); background:linear-gradient(180deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.28) 62%, transparent 100%); border-bottom:0; }
+@media (display-mode: standalone) {
+  .site-header { padding-top: env(safe-area-inset-top, 0px); }
+  .ios-install-hint { display: none; }
+}
+.ios-install-hint {
+  position: fixed;
+  z-index: 60;
+  left: 12px;
+  right: 12px;
+  bottom: calc(var(--mobile-nav, 16px) + 10px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 14px;
+  color: #eef3e2;
+  background: #161914f2;
+  border: 1px solid #ffffff18;
+  border-radius: 14px;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 12px 32px #00000080;
+}
+.ios-install-hint p { margin: 0; font-size: 13px; line-height: 1.4; }
+.ios-install-hint strong { font-weight: 650; }
+.ios-install-hint em { font-style: normal; color: #d9f36a; }
+.ios-install-dismiss {
+  flex: none;
+  min-height: 36px;
+  padding: 0 10px;
+  color: #9aa090;
+  font-size: 12px;
+  background: transparent;
+}
+@media (min-width: 640px) {
+  .ios-install-hint {
+    left: 50%;
+    right: auto;
+    bottom: 20px;
+    width: min(28rem, calc(100vw - 24px));
+    transform: translateX(-50%);
+  }
+}
 .site-header-inner { max-width:1280px; margin:auto; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:10px 4vw; }
 .site-brand { display:flex; align-items:center; min-height:44px; gap:8px; font-size:19px; font-weight:700; letter-spacing:-.06em; }
 .preview-flag { margin-left:4px; color:#9aa090; font-size:10px; font-weight:500; letter-spacing:.04em; }

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { IosInstallHint } from "@/app/components/IosInstallHint";
 
 function syncVisibleViewport() {
   const root = document.documentElement;
@@ -81,6 +82,7 @@ export function SiteHeader({ signedIn, isAdmin }: { signedIn: boolean; isAdmin: 
           </Link>
         )}
       </nav>
+      <IosInstallHint />
     </>
   );
 }
