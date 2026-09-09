@@ -17,7 +17,9 @@ import { importPosterFromUrl } from "@/lib/images";
 import { getPollData } from "@/lib/poll";
 import { getComments } from "@/lib/comments";
 import { publishLiveEvent } from "@/lib/live";
-import { mayViewAdmissionTickets } from "@/lib/ticket-access";
+import { buildTicketWallet, mayViewAdmissionTickets } from "@/lib/ticket-access";
+import { amsterdamClock } from "@/lib/board-discovery";
+import { decodeQrPayload, qrSvg } from "@/lib/ticket-qr";
 import { type Actor, canManageFilm, canManageComment, resolveRole } from "@/lib/authz";
 
 /**
@@ -182,7 +184,11 @@ async function buildFilmView(
   });
   const ticketRows = maySeeTickets
     ? await db
-        .select({ id: filmTickets.id, label: filmTickets.label })
+        .select({
+          id: filmTickets.id,
+          label: filmTickets.label,
+          hasQr: sql<boolean>`${filmTickets.qrPayload} is not null`,
+        })
         .from(filmTickets)
         .where(eq(filmTickets.filmId, film.id))
         .orderBy(filmTickets.id)
@@ -497,7 +503,7 @@ export async function setFilmPoster(actor: Actor, filmId: number, url: string) {
 export async function addFilmTicket(
   actor: Actor,
   filmId: number,
-  input: { label?: string | null; imageUrl: string }
+  input: { label?: string | null; imageUrl: string; qrPayload?: string | null }
 ) {
   await loadManageableFilm(actor, filmId);
   const label = normalise(input.label) ?? "Cinema ticket";
@@ -505,12 +511,18 @@ export async function addFilmTicket(
   const rawUrl = normalise(input.imageUrl);
   if (!rawUrl) throw new ServiceError("imageUrl is required", 400);
   const imported = await importPosterFromUrl(rawUrl);
+  const scanned = imported.body ? await decodeQrPayload(imported.body) : null;
+  const supplied = normalise(input.qrPayload);
+  if (supplied && supplied.length > 2048) {
+    throw new ServiceError("qrPayload may be at most 2048 characters", 400);
+  }
+  const qrPayload = scanned ?? supplied ?? null;
   const [ticket] = await db
     .insert(filmTickets)
-    .values({ filmId, label, imageUrl: imported.url, createdBy: actor.userId })
+    .values({ filmId, label, imageUrl: imported.url, qrPayload, createdBy: actor.userId })
     .returning({ id: filmTickets.id, label: filmTickets.label });
   publishLiveEvent({ topic: "film", filmId });
-  return { ...ticket, filmId, stored: true };
+  return { ...ticket, filmId, stored: true, qrFound: Boolean(qrPayload), qrSource: scanned ? "image" : qrPayload ? "argument" : null };
 }
 
 export async function deleteFilmTicket(actor: Actor, filmId: number, ticketId: number) {
@@ -543,12 +555,82 @@ export async function getFilmTicketForViewer(actor: Actor, filmId: number, ticke
     throw new ServiceError("Mark yourself as going before opening tickets", 403);
   }
   const [ticket] = await db
-    .select({ id: filmTickets.id, label: filmTickets.label, imageUrl: filmTickets.imageUrl })
+    .select({
+      id: filmTickets.id,
+      label: filmTickets.label,
+      imageUrl: filmTickets.imageUrl,
+      qrPayload: filmTickets.qrPayload,
+    })
     .from(filmTickets)
     .where(and(eq(filmTickets.id, ticketId), eq(filmTickets.filmId, filmId)))
     .limit(1);
   if (!ticket) throw new ServiceError(`Film ${filmId} has no ticket ${ticketId}`, 404);
   return { ...ticket, signedUrl: await signPosterUrl(ticket.imageUrl) };
+}
+
+/** Draw a fresh QR from the stored payload, or fall back to the original photo. */
+export async function getFilmTicketQrForViewer(actor: Actor, filmId: number, ticketId: number) {
+  const ticket = await getFilmTicketForViewer(actor, filmId, ticketId);
+  if (ticket.qrPayload) {
+    return { kind: "svg" as const, body: await qrSvg(ticket.qrPayload) };
+  }
+  if (!ticket.signedUrl) throw new ServiceError("Ticket image unavailable", 404);
+  return { kind: "image" as const, url: ticket.signedUrl };
+}
+
+/** Admission tickets the current member is allowed to open. Image URLs stay off this list. */
+export async function listMyTickets(actor: Actor) {
+  const rows = await db
+    .select({
+      id: filmTickets.id,
+      label: filmTickets.label,
+      hasQr: sql<boolean>`${filmTickets.qrPayload} is not null`,
+      filmId: films.id,
+      title: films.title,
+      date: films.date,
+      startTime: films.startTime,
+      formats: films.formats,
+      posterUrl: films.posterUrl,
+      allowMultiVote: films.allowMultiVote,
+    })
+    .from(filmTickets)
+    .innerJoin(films, eq(filmTickets.filmId, films.id))
+    .orderBy(filmTickets.id);
+
+  const goingRows = await db
+    .select({ filmId: attendees.filmId })
+    .from(attendees)
+    .where(and(eq(attendees.userId, actor.userId), eq(attendees.type, "going")));
+  const going = new Set(goingRows.map((row) => row.filmId));
+
+  const pollByFilm = new Map<number, Awaited<ReturnType<typeof getPollData>>>();
+  const walletRows = [];
+  for (const row of rows) {
+    if (!pollByFilm.has(row.filmId)) {
+      pollByFilm.set(row.filmId, await getPollData(row.filmId, row.allowMultiVote, actor.userId));
+    }
+    const poll = pollByFilm.get(row.filmId) ?? null;
+    const winner = poll?.options.find((option) => option.isWinning) ?? null;
+    walletRows.push({
+      id: row.id,
+      label: row.label,
+      hasQr: Boolean(row.hasQr),
+      filmId: row.filmId,
+      title: row.title,
+      date: winner?.date ?? row.date,
+      startTime: winner?.startTime ?? row.startTime,
+      formats: row.formats,
+      posterUrl: row.posterUrl,
+      isDirectlyGoing: going.has(row.filmId),
+      votedForWinningPollOption: winner?.votedByMe ?? false,
+    });
+  }
+
+  const wallet = buildTicketWallet(walletRows, amsterdamClock(new Date()).date);
+  for (const group of [...wallet.upcoming, ...wallet.past]) {
+    group.posterUrl = await signPosterUrl(group.posterUrl);
+  }
+  return wallet;
 }
 
 export async function deleteFilm(actor: Actor, filmId: number) {

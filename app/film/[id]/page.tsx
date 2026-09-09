@@ -86,9 +86,18 @@ export default async function FilmDetailPage({
     isGoing = winner ? winner.votedByMe : false;
   }
 
-  const tickets = isGoing
+  const ticketCountRows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(filmTickets)
+    .where(eq(filmTickets.filmId, filmId));
+  const admissionTicketCount = Number(ticketCountRows[0]?.count ?? 0);
+  const tickets = isGoing && admissionTicketCount > 0
     ? await db
-        .select({ id: filmTickets.id, label: filmTickets.label })
+        .select({
+          id: filmTickets.id,
+          label: filmTickets.label,
+          hasQr: sql<boolean>`${filmTickets.qrPayload} is not null`,
+        })
         .from(filmTickets)
         .where(eq(filmTickets.filmId, filmId))
         .orderBy(filmTickets.id)
@@ -121,6 +130,7 @@ export default async function FilmDetailPage({
           interestedUsers,
           isGoing,
           tickets,
+          admissionTicketCount,
           isInterested: interestedUsers.some((u) => u.id === userId),
           canRate: isGoing && hasFilmEnded(date, endTime),
           myRating,

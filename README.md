@@ -415,9 +415,11 @@ New registrations are disabled in the Google sign-in callback. Only an email
 already present in `users` can sign in; existing accounts keep working.
 
 MCP can attach original ticket images with `add_film_ticket` and remove them
-with `delete_film_ticket`. Ticket QR codes are stored exactly as uploaded and
-are never reconstructed. Film responses expose only ticket ids and labels, and
-only to a member marked as going. Opening the protected ticket route performs
+with `delete_film_ticket`. The server reads the QR payload from the photo and
+draws a fresh scannable code from that string. It never traces the pixels or
+invents a booking code. Film responses expose only ticket ids and labels, and
+only to a member marked as going. `/tickets` lists every admission ticket you
+are allowed to open. Opening the protected ticket route performs
 the attendance check again before issuing a short-lived storage redirect.
 Supported ticket uploads are original JPEG, PNG, WebP and AVIF images. PDF
 tickets should be exported or captured as an image without cropping or changing

@@ -8,6 +8,7 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
+  box-sizing: border-box;
   min-height: 86svh;
   display: flex;
   flex-direction: column;
@@ -265,17 +266,24 @@
 
 @media (max-width: 639px) {
   .feature-film {
-    min-height: calc(100svh - 76px - env(safe-area-inset-bottom));
+    height: 100svh;
+    max-height: 100svh;
+    min-height: 100svh;
+    padding-bottom: calc(var(--mobile-nav, 60px) + env(safe-area-inset-bottom, 0px));
   }
   .feature-art {
     object-position: 58% center;
   }
   .feature-body {
     width: 100%;
-    padding: 0 20px 24px;
+    padding: 0 20px 12px;
   }
   .feature-body h1 {
-    font-size: clamp(46px, 16vw, 72px);
+    font-size: clamp(40px, 12vw, 56px);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   .feature-line,
   .feature-tickets {

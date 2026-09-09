@@ -81,6 +81,17 @@ export function BoardSpotlight({
               ) : null}
             </p>
           )}
+          {(featured.admissionTicketCount ?? 0) > 0 && (
+            <p className="feature-tickets">
+              We have tickets for this screening
+              {featured.isGoing ? (
+                <>
+                  {" · "}
+                  <Link href={preview ? "/preview/tickets" : "/tickets"}>Open</Link>
+                </>
+              ) : null}
+            </p>
+          )}
           <div className="feature-actions">
             <Link className="discovery-primary" href={href(featured)}>
               {featured.poll ? "Pick a date" : "Open"}

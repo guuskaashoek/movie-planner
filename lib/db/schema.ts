@@ -71,6 +71,9 @@ export const filmTickets = sqliteTable("film_tickets", {
     .references(() => films.id, { onDelete: "cascade" }),
   label: text("label").notNull(),
   imageUrl: text("image_url").notNull(),
+  // Exact string encoded in the Pathé QR. A fresh code is drawn from this;
+  // the original photo is kept as backup. Never invent this value.
+  qrPayload: text("qr_payload"),
   createdBy: integer("created_by")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),

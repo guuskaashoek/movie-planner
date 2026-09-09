@@ -1,0 +1,1 @@
+ALTER TABLE `film_tickets` ADD `qr_payload` text;

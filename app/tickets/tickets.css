@@ -1,0 +1,237 @@
+.ticket-wallet {
+  --ticket-ink: #16130c;
+  --ticket-paper: #f3ead4;
+  --ticket-rule: #cbbf9e;
+  --cinema-accent: #e4ff6a;
+  --cinema-muted: #9aa090;
+}
+
+.ticket-wallet h1 {
+  margin: 0;
+  font-family: var(--font-display), var(--font-geist-sans), sans-serif;
+  font-size: clamp(40px, 10vw, 64px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+.ticket-wallet-count {
+  margin: 10px 0 0;
+  color: var(--cinema-muted);
+  font-size: 13px;
+}
+
+.ticket-empty {
+  margin-top: 36px;
+  padding: 28px 8px 12px;
+  color: var(--cinema-muted);
+  text-align: center;
+}
+
+.ticket-empty strong {
+  display: block;
+  color: #f4f1ea;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ticket-empty p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ticket-empty a,
+.cinema-ticket-photo {
+  color: var(--cinema-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ticket-section {
+  margin-top: 28px;
+}
+
+.ticket-section h2 {
+  margin: 0 0 14px;
+  color: var(--cinema-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ticket-wallet-list {
+  display: grid;
+  gap: 20px;
+}
+
+.cinema-ticket {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  max-width: 26rem;
+  margin: 0 auto;
+  color: var(--ticket-ink);
+  background: var(--ticket-paper);
+  box-shadow: 0 18px 40px #00000073;
+}
+
+.cinema-ticket-poster {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.cinema-ticket-poster img {
+  width: 100%;
+  height: 115%;
+  object-fit: cover;
+  object-position: center 18%;
+  filter: blur(22px) saturate(1.15);
+  transform: scale(1.18);
+}
+
+.cinema-ticket-poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(243, 234, 212, 0.42) 0%, rgba(243, 234, 212, 0.78) 42%, rgba(243, 234, 212, 0.94) 72%, var(--ticket-paper) 100%);
+}
+
+.cinema-ticket::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.12;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.cinema-ticket-body,
+.cinema-ticket-perf,
+.cinema-ticket-stub {
+  position: relative;
+  z-index: 1;
+}
+
+.cinema-ticket-body {
+  padding: 18px 20px 8px;
+}
+
+.cinema-ticket-brand {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.cinema-ticket-body h3 {
+  margin: 14px 0 0;
+  font-family: var(--font-display), var(--font-geist-sans), sans-serif;
+  font-size: clamp(28px, 8vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.9;
+}
+
+.cinema-ticket-body h3 a {
+  color: inherit;
+}
+
+.cinema-ticket-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin: 18px 0 10px;
+}
+
+.cinema-ticket-meta div {
+  min-width: 0;
+}
+
+.cinema-ticket-meta dt {
+  color: #7a7058;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cinema-ticket-meta dd {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.cinema-ticket-perf {
+  height: 22px;
+  background:
+    radial-gradient(circle at 0 50%, #000 9px, transparent 9.5px),
+    radial-gradient(circle at 100% 50%, #000 9px, transparent 9.5px),
+    repeating-linear-gradient(90deg, var(--ticket-rule) 0 5px, transparent 5px 11px);
+  background-position: left center, right center, 12px 50%;
+  background-repeat: no-repeat, no-repeat, repeat-x;
+  background-size: 18px 22px, 18px 22px, auto 2px;
+}
+
+.cinema-ticket-stub {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 8px 20px 18px;
+  text-align: center;
+}
+
+.ticket-qr {
+  width: min(196px, 62vw);
+  height: auto;
+  background: #fff;
+  padding: 8px;
+}
+
+.cinema-ticket-seat {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+}
+
+.cinema-ticket-seat span {
+  display: block;
+  color: #7a7058;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cinema-ticket-seat strong {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-display), var(--font-geist-sans), sans-serif;
+  font-size: clamp(22px, 7vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.cinema-ticket-photo {
+  font-size: 11px;
+}
+
+.ticket-wallet a:focus-visible,
+.cinema-ticket a:focus-visible {
+  outline: 2px solid #11150c;
+  outline-offset: 3px;
+}
+
+@media (min-width: 800px) {
+  .ticket-wallet-list {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}

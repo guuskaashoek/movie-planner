@@ -23,10 +23,12 @@ sqlite.prepare(`
     film_id INTEGER NOT NULL REFERENCES films(id) ON DELETE CASCADE,
     label TEXT NOT NULL,
     image_url TEXT NOT NULL,
+    qr_payload TEXT,
     created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at INTEGER NOT NULL DEFAULT (strftime('%s','now') * 1000)
   )
 `).run();
+try { sqlite.prepare("ALTER TABLE film_tickets ADD COLUMN qr_payload TEXT").run(); } catch {}
 
 sqlite.prepare(`
   CREATE TABLE IF NOT EXISTS poll_options (

@@ -411,13 +411,14 @@ export const TOOLS: ToolDefinition[] = [
     name: "add_film_ticket",
     title: "Add an admission ticket",
     description:
-      "Attach an actual cinema ticket image (for example a Pathé ticket with its original QR code) to a film. The image is downloaded, validated and stored privately behind Movie Planner's attendance check. Only members marked going can open it on the website. Never recreate or alter the QR code.",
+      "Attach an actual cinema ticket image (for example a Pathé ticket). The server downloads the photo, reads the QR payload from the pixels, and stores that string so the website can draw a fresh scannable QR. It never traces or invents the code. Only members marked going can open it. If the photo is too blurry to decode, pass qrPayload as the exact string from the ticket.",
     inputSchema: {
       type: "object",
       properties: {
         ...filmIdProp,
         imageUrl: { type: "string", description: "Public direct URL to the original JPEG, PNG, WebP or AVIF ticket image." },
-        label: { type: "string", description: "Short identifier such as 'Row 8 · Seat 12' or 'Guus'." },
+        label: { type: "string", description: "Short identifier such as 'Row 8 · Seats 12-14', 'Row 8 · Seat 12', or a name." },
+        qrPayload: { type: "string", description: "Exact QR contents from the ticket. Only needed when the photo cannot be decoded. Never invent this." },
       },
       required: ["filmId", "imageUrl"],
       additionalProperties: false,
@@ -425,6 +426,7 @@ export const TOOLS: ToolDefinition[] = [
     handler: (actor, args) => addFilmTicket(actor, reqNum(args, "filmId"), {
       imageUrl: reqStr(args, "imageUrl"),
       label: str(args, "label") ?? null,
+      qrPayload: str(args, "qrPayload") ?? null,
     }),
   },
   {

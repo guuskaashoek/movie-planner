@@ -31,6 +31,7 @@ export type Film = {
   ticketsOnSaleDate: string | null;
   ticketsOnSaleTime: string | null;
   ticketsUrl: string | null;
+  admissionTicketCount?: number;
   inviteToken: string | null;
   goingUsers: Attendee[];
   interestedUsers: Attendee[];
@@ -275,6 +276,7 @@ export function BoardClient({ initial, preview = false }: { initial: ApiResponse
               {film.date ? new Date(film.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : film.releaseDate ? `Releases ${new Date(film.releaseDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Date to be announced"}
               {film.date && film.startTime && ` · ${film.startTime}`}
             </p>
+            {(film.admissionTicketCount ?? 0) > 0 && <p className="mt-1 text-xs font-medium text-lime-200">We have tickets</p>}
             {film.poll && <p className="mt-1 text-xs text-amber-300">Vote on a date →</p>}
           </Link>
           {renderActions(film, true)}
@@ -379,6 +381,9 @@ export function BoardClient({ initial, preview = false }: { initial: ApiResponse
                             {new Date(film.ticketsOnSaleDate).toLocaleDateString("nl-NL", { day: "numeric", month: "short" })}
                             {film.ticketsOnSaleTime && ` · ${film.ticketsOnSaleTime}`}
                           </span>
+                        )}
+                        {(film.admissionTicketCount ?? 0) > 0 && (
+                          <span className="text-xs font-medium text-lime-200">We have tickets</span>
                         )}
                       </div>
                     </div>

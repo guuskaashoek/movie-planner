@@ -213,6 +213,7 @@ export type ImportedPoster = {
   contentType: string;
   bytes: number;
   reused: boolean;
+  body?: Buffer;
 };
 
 /**
@@ -278,5 +279,5 @@ export async function importPosterFromUrl(rawUrl: string): Promise<ImportedPoste
   }
 
   const url = await storePoster(body, kind);
-  return { url, contentType: kind.contentType, bytes: body.length, reused: false };
+  return { url, contentType: kind.contentType, bytes: body.length, reused: false, body };
 }

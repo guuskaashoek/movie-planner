@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { PollVoter, type Poll } from "@/app/components/PollVoter";
 import { CommentsSection, type FilmComment } from "@/app/components/CommentsSection";
 import { useLiveUpdates } from "@/app/components/useLiveUpdates";
+import { CinemaTicket } from "@/app/tickets/CinemaTicket";
 
 type Attendee = {
   id: number;
@@ -37,7 +38,8 @@ export type FilmDetailInitial = {
   goingUsers: Attendee[];
   interestedUsers: Attendee[];
   isGoing: boolean;
-  tickets: { id: number; label: string }[];
+  tickets: { id: number; label: string; hasQr?: boolean }[];
+  admissionTicketCount: number;
   isInterested: boolean;
   canRate: boolean;
   myRating: number | null;
@@ -234,6 +236,19 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
               </div>
             )}
 
+            {initial.admissionTicketCount > 0 && (
+              <div className="text-sm text-lime-200">
+                <p>We have tickets for this screening.</p>
+                {isGoing ? (
+                  <a href="#your-tickets" className="mt-1 inline-flex min-h-11 items-center underline underline-offset-4">
+                    Open tickets
+                  </a>
+                ) : (
+                  <p className="mt-1 text-xs text-zinc-400">Mark I’m going to open them.</p>
+                )}
+              </div>
+            )}
+
             {initial.film.creator && (
               <p className="text-xs text-zinc-500">
                 Added by {initial.film.creator.name || initial.film.creator.email}
@@ -285,23 +300,24 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
           </section>
 
           {isGoing && initial.tickets.length > 0 && (
-            <section className="rounded-2xl border border-lime-200/20 bg-lime-200/5 p-5 sm:p-6">
-              <h2 className="text-lg font-semibold text-zinc-100">Your tickets</h2>
-              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                Open the original ticket at the cinema. Keep the QR code private.
-              </p>
-              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <section id="your-tickets">
+              <h2 className="mb-4 text-lg font-semibold text-zinc-100">Your tickets</h2>
+              <div className="ticket-wallet-list">
                 {initial.tickets.map((ticket) => (
-                  <a
+                  <CinemaTicket
                     key={ticket.id}
-                    href={`/api/films/${film.id}/tickets/${ticket.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex min-h-12 items-center justify-between rounded-xl bg-zinc-100 px-4 text-sm font-semibold text-zinc-950 hover:bg-white"
-                  >
-                    <span>{ticket.label}</span>
-                    <span aria-hidden="true">↗</span>
-                  </a>
+                    filmId={film.id}
+                    title={film.title}
+                    date={film.date}
+                    startTime={film.startTime}
+                    formats={film.formats}
+                    label={ticket.label}
+                    ticketId={ticket.id}
+                    posterUrl={film.posterUrl}
+                    qrSrc={`/api/films/${film.id}/tickets/${ticket.id}/qr`}
+                    filmHref={`/film/${film.id}`}
+                    photoHref={`/api/films/${film.id}/tickets/${ticket.id}`}
+                  />
                 ))}
               </div>
             </section>

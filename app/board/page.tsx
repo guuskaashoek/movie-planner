@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
-import { films, boardSettings, attendees, users, filmRatings } from "@/lib/db/schema";
+import { films, boardSettings, attendees, users, filmRatings, filmTickets } from "@/lib/db/schema";
 import { BoardClient } from "./BoardClient";
 import { CalendarSubscription } from "./CalendarSubscription";
 import { eq, sql } from "drizzle-orm";
@@ -66,6 +66,15 @@ export default async function BoardPage() {
     }
   }
 
+  const ticketCounts = await db
+    .select({
+      filmId: filmTickets.filmId,
+      count: sql<number>`count(*)`,
+    })
+    .from(filmTickets)
+    .groupBy(filmTickets.filmId);
+  const admissionByFilm = new Map(ticketCounts.map((row) => [row.filmId, Number(row.count)]));
+
   // For each film, get attendee information
   const filmsWithAttendees = await Promise.all(
     allFilms.map(async (film) => {
@@ -123,6 +132,7 @@ export default async function BoardPage() {
         interestedUsers,
         isGoing,
         isInterested,
+        admissionTicketCount: admissionByFilm.get(film.id) ?? 0,
         poll,
         canRate: isGoing && hasFilmEnded(date, endTime),
         myRating,

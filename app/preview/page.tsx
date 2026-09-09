@@ -34,6 +34,14 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
                 Sample ticket sale: {film.ticketsOnSaleDate} · {film.ticketsOnSaleTime}
               </p>
             )}
+            {(film.admissionTicketCount ?? 0) > 0 && (
+              <p className="mt-3 text-sm text-lime-200">
+                We have tickets for this screening.{" "}
+                <Link href="/preview/tickets" className="underline underline-offset-4">
+                  Open tickets
+                </Link>
+              </p>
+            )}
           </div>
         </div>
         <p className="mt-10 text-[11px] text-zinc-600">

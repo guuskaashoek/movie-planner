@@ -40,13 +40,14 @@ button { touch-action: manipulation; }
 .page-frame { max-width:42rem; margin:0 auto; padding:24px 16px 56px; }
 .page-frame-wide { max-width:64rem; margin:0 auto; padding:24px 16px 56px; }
 @media (max-width:639px) {
-  body { padding-bottom:calc(76px + env(safe-area-inset-bottom)); }
+  :root { --mobile-nav: 64px; }
+  body { padding-bottom:calc(var(--mobile-nav) + env(safe-area-inset-bottom, 0px)); }
   .site-header-inner { padding:7px 16px; }
   .site-brand { font-size:18px; }
   .site-brand img { width:26px; height:26px; }
   .desktop-nav { display:none; }
   .mobile-add { display:grid; place-items:center; width:44px; height:44px; border:1px solid #ffffff15; border-radius:50%; color:#d7dec7; }
-  .mobile-nav { position:fixed; z-index:50; bottom:0; left:0; right:0; display:flex; justify-content:space-around; gap:6px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); border-top:1px solid #ffffff10; background:#10120ff2; backdrop-filter:blur(20px); }
-  .mobile-nav a { flex:1; display:flex; align-items:center; justify-content:center; gap:4px; flex-direction:column; min-height:48px; color:#767d6b; font-size:10px; }
+  .mobile-nav { position:fixed; z-index:50; bottom:0; left:0; right:0; display:flex; justify-content:space-around; gap:0; padding:6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); border-top:1px solid #ffffff10; background:#10120ff2; backdrop-filter:blur(20px); }
+  .mobile-nav a { flex:1; display:flex; align-items:center; justify-content:center; gap:3px; flex-direction:column; min-height:48px; color:#767d6b; font-size:10px; }
   .mobile-nav a[aria-current="page"] { color:#d9f36a; }
 }
