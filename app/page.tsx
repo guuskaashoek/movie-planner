@@ -5,7 +5,7 @@ export default async function Home() {
   const session = await auth();
 
   if (session?.user) {
-    redirect("/my-films");
+    redirect("/board");
   }
 
   return (
@@ -23,7 +23,7 @@ export default async function Home() {
         <form
           action={async () => {
             "use server";
-            await signIn("google");
+            await signIn("google", { redirectTo: "/board" });
           }}
         >
           <button

@@ -6,8 +6,9 @@ import { getSessionActor } from "@/lib/authz";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Film Calendar Board",
-  description: "Collaborative film calendar with shared board",
+  title: "Movie Planner",
+  description: "Plan your next movie night together.",
+  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
 };
 
 export default async function RootLayout({
@@ -24,27 +25,30 @@ export default async function RootLayout({
       >
         <div className="min-h-screen bg-black text-zinc-100">
           <header className="border-b border-zinc-800">
-            <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-              <Link href="/" className="text-sm font-semibold tracking-tight text-zinc-100 hover:text-white">
-                🎬 Film Calendar
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
+              <Link href="/" aria-label="Movie Planner home" className="flex min-h-11 items-center gap-2.5 text-sm font-semibold tracking-tight text-zinc-100 hover:text-white">
+                {/* A vector mark stays crisp even at favicon size. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icon.svg" width="36" height="36" alt="" />
+                <span>Movie Planner</span>
               </Link>
-              <nav className="flex items-center gap-6">
-                <Link
-                  href="/my-films"
-                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-100"
-                >
-                  My Films
-                </Link>
+              <nav className="flex w-full items-center gap-1 overflow-x-auto sm:w-auto sm:gap-3" aria-label="Main navigation">
                 <Link
                   href="/board"
-                  className="text-sm text-zinc-400 transition-colors hover:text-zinc-100"
+                  className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100"
                 >
-                  Calendar Board
+                  Board
+                </Link>
+                <Link
+                  href="/my-films"
+                  className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100"
+                >
+                  My Films
                 </Link>
                 {actor && (
                   <Link
                     href="/settings"
-                    className="text-sm text-zinc-400 transition-colors hover:text-zinc-100"
+                    className="inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm text-zinc-400 transition-colors hover:bg-zinc-900 hover:text-zinc-100"
                   >
                     Settings
                   </Link>
@@ -60,7 +64,7 @@ export default async function RootLayout({
               </nav>
             </div>
           </header>
-          <main className="mx-auto max-w-5xl px-4 py-8">{children}</main>
+          <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">{children}</main>
         </div>
       </body>
     </html>

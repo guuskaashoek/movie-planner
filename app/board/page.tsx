@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { films, boardSettings, attendees, users, filmRatings } from "@/lib/db/schema";
@@ -45,7 +46,7 @@ export default async function BoardPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <p className="mb-4 text-zinc-400">Session error: User ID missing.</p>
-        <a href="/api/auth/signout" className="rounded bg-white px-4 py-2 text-black text-sm">Sign Out</a>
+        <Link href="/api/auth/signout" className="rounded bg-white px-4 py-2 text-black text-sm">Sign Out</Link>
       </div>
     )
   }
@@ -154,22 +155,6 @@ export default async function BoardPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      {/* Calendar Subscription Section */}
-      <section className="rounded-lg border border-zinc-800 bg-zinc-950 p-6">
-        <div className="space-y-4">
-          <div>
-            <h1 className="text-xl font-semibold text-zinc-50">
-              Calendar Board
-            </h1>
-            <p className="mt-1 text-sm text-zinc-400">
-              Subscribe to sync films you're attending to your calendar
-            </p>
-          </div>
-
-          <CalendarSubscription icsUrl={icsUrl} />
-        </div>
-      </section>
-
       <BoardClient
         initial={{
           films: filmsWithAttendees,
@@ -178,6 +163,13 @@ export default async function BoardPage() {
           baseUrl,
         }}
       />
+      <details className="rounded-xl border border-zinc-800 bg-zinc-950 p-4">
+        <summary className="cursor-pointer py-2 text-sm font-medium text-zinc-300">Sync with your calendar</summary>
+        <div className="mt-3 space-y-3">
+          <p className="text-sm text-zinc-500">Subscribe to the films you’re attending.</p>
+          <CalendarSubscription icsUrl={icsUrl} />
+        </div>
+      </details>
     </div>
   );
 }

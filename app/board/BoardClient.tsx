@@ -49,6 +49,20 @@ type ApiResponse = {
 export function BoardClient({ initial }: { initial: ApiResponse }) {
   const router = useRouter();
   const [films, setFilms] = useState<Film[]>(initial.films);
+  const [view, setView] = useState<"list" | "grid">("list");
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("movie-planner-view");
+      if (saved === "list" || saved === "grid") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setView(saved);
+      }
+    } catch { /* The view still works when browser storage is disabled. */ }
+  }, []);
+  function changeView(next: "list" | "grid") {
+    setView(next);
+    try { localStorage.setItem("movie-planner-view", next); } catch {}
+  }
   const [showPast, setShowPast] = useState(false);
   const [showPastReleases, setShowPastReleases] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
@@ -211,6 +225,38 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
     return a.localeCompare(b);
   });
 
+  const renderGrid = (items: Film[]) => (
+    <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4">
+      {items.map((film) => (
+        <article key={film.id} className="group min-w-0">
+          <Link href={`/film/${film.id}`} className="block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-amber-300">
+            <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
+              {film.posterUrl ? (
+                <img src={film.posterUrl} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-300 motion-safe:group-hover:scale-105" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center gap-4 p-4 text-center">
+                  <img src="/icon.svg" alt="" width="40" height="40" className="opacity-40" />
+                  <span className="text-sm font-medium text-zinc-500">{film.title}</span>
+                </div>
+              )}
+              {film.isGoing && <span className="absolute left-2 top-2 rounded-md bg-amber-300 px-2 py-1 text-[10px] font-bold text-zinc-950">You’re going</span>}
+              {film.averageRating !== null && <span className="absolute bottom-2 right-2 rounded-md bg-black/85 px-2 py-1 text-xs font-medium text-amber-300">★ {film.averageRating.toFixed(1)}</span>}
+            </div>
+            <h3 className="mt-3 line-clamp-2 text-sm font-semibold leading-snug text-zinc-100">{film.title}</h3>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+              {film.date ? new Date(film.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : film.releaseDate ? `Releases ${new Date(film.releaseDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Date to be announced"}
+              {film.date && film.startTime && ` · ${film.startTime}`}
+            </p>
+            {film.poll && <p className="mt-1 text-xs text-amber-300">Vote on a date →</p>}
+          </Link>
+          <button type="button" aria-pressed={film.isInterested} aria-label={`${film.isInterested ? "Remove interest in" : "Interested in"} ${film.title}`} onClick={() => toggleInterested(film.id, film.isInterested)} className={`mt-2 flex min-h-11 w-full items-center justify-center gap-1 rounded-lg border px-2 text-xs font-medium transition-colors ${film.isInterested ? "border-amber-300/30 bg-amber-300/10 text-amber-200" : "border-zinc-800 text-zinc-400 hover:bg-zinc-900"}`}>
+            {film.isInterested ? "★ Interested" : "☆ Interested"}{film.interestedUsers.length > 0 && ` · ${film.interestedUsers.length}`}
+          </button>
+        </article>
+      ))}
+    </div>
+  );
+
   // --- RENDER HELPER ---
   const renderDateGroup = (date: string, groupFilms: Film[], isPast = false) => {
     const isTBA = date === "TBA";
@@ -254,10 +300,10 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                 (date < today && !isTBA) || isPast ? "border-zinc-800/50 bg-zinc-900/20 opacity-75 grayscale-[0.3] hover:opacity-100 hover:grayscale-0" : "border-zinc-800 bg-zinc-900/40"
                 }`}
             >
-              <div className="flex gap-4 p-3 sm:gap-6">
+              <div className="flex flex-wrap gap-4 p-3 sm:flex-nowrap sm:gap-6">
                 <Link
                   href={`/film/${film.id}`}
-                  className="relative aspect-[2/3] w-24 flex-none cursor-pointer overflow-hidden rounded-lg bg-zinc-800 shadow-lg sm:w-32"
+                  className="relative aspect-[2/3] self-start w-20 flex-none cursor-pointer overflow-hidden rounded-lg bg-zinc-800 shadow-lg sm:w-32"
                 >
                   {/* Poster content */}
                   {film.posterUrl ? (
@@ -281,10 +327,10 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                   )}
                 </Link>
 
-                <div className="flex min-w-0 flex-1 flex-col justify-between py-1">
-                  <Link href={`/film/${film.id}`} className="block space-y-2">
+                <div className="contents sm:flex sm:min-w-0 sm:flex-1 sm:flex-col sm:justify-between sm:py-1">
+                  <Link href={`/film/${film.id}`} className="block min-w-0 flex-1 space-y-2">
                     <div>
-                      <h3 className="truncate text-lg font-bold text-zinc-100 group-hover:text-white">
+                      <h3 className="break-words text-base font-bold text-zinc-100 group-hover:text-white">
                         {film.title}
                       </h3>
                       <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-400">
@@ -315,7 +361,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                     )}
                   </Link>
 
-                  <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+                  <div className="w-full space-y-3 border-t border-white/5 pt-4 sm:mt-4">
                     {(film.ratingCount > 0 || film.canRate) && (
                       <div className="flex flex-wrap items-center gap-3">
                         <span className="text-xs text-zinc-400">
@@ -346,8 +392,8 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                     )}
 
                     {/* Interested row — always visible */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
                         {film.interestedUsers.length > 0 ? (
                           <>
                             <div className="flex -space-x-2 overflow-hidden">
@@ -374,7 +420,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                       </div>
                       <button
                         onClick={() => toggleInterested(film.id, film.isInterested)}
-                        className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${
+                        className={`flex items-center gap-1.5 rounded-lg border min-h-11 px-3 py-1.5 text-xs font-semibold transition-all ${
                           film.isInterested
                             ? "border-zinc-600 bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
                             : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
@@ -401,7 +447,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                         {film.inviteToken && (
                           <button
                             onClick={() => copyInviteLink(film)}
-                            className={`flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                            className={`flex w-full items-center justify-center gap-1.5 rounded-lg border min-h-11 px-3 py-2 text-xs font-semibold transition-all ${
                               copiedInviteId === film.id
                                 ? "border-green-500/50 bg-green-500/10 text-green-400"
                                 : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
@@ -436,10 +482,10 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                         ) : (
                           <span className="text-xs text-zinc-500 italic">No one going yet</span>
                         )}
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <button
                             onClick={() => toggleGoing(film.id, film.isGoing)}
-                            className={`group/btn relative flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${film.isGoing
+                            className={`group/btn relative flex items-center justify-center gap-2 rounded-lg min-h-11 px-4 py-2 text-sm font-semibold transition-all ${film.isGoing
                               ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white"
                               : "bg-white text-zinc-950 shadow-sm hover:bg-zinc-200"
                               }`}
@@ -450,7 +496,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
                             <button
                               onClick={() => copyInviteLink(film)}
                               title="Copy invite link"
-                              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-all ${
+                              className={`flex items-center gap-1.5 rounded-lg border min-h-11 px-3 py-2 text-xs font-semibold transition-all ${
                                 copiedInviteId === film.id
                                   ? "border-green-500/50 bg-green-500/10 text-green-400"
                                   : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500 hover:text-zinc-200"
@@ -483,7 +529,42 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-12 pb-24">
+    <div className="mx-auto space-y-8 pb-4">
+      <div className="space-y-5">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300">Better together</p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight">Movie board</h1>
+          </div>
+          <Link href="/my-films" className="inline-flex min-h-11 shrink-0 items-center rounded-xl bg-amber-300 px-4 text-sm font-semibold text-zinc-950 hover:bg-amber-200">+ Add film</Link>
+        </div>
+        <div className="flex items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+          <p className="text-sm text-zinc-500">{films.length} {films.length === 1 ? "film" : "films"} on the board</p>
+          <div role="group" aria-label="Film display" className="flex shrink-0 rounded-xl border border-zinc-800 bg-zinc-950 p-1">
+            {(["list", "grid"] as const).map((mode) => (
+              <button key={mode} type="button" aria-pressed={view === mode} onClick={() => changeView(mode)} className={`flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-amber-300 ${view === mode ? "bg-zinc-800 text-white" : "text-zinc-500 hover:text-zinc-200"}`}>
+                <svg aria-hidden="true" width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5">{mode === "list" ? <path d="M7 5h10M7 10h10M7 15h10M3 5h1M3 10h1M3 15h1" /> : <><rect x="3" y="3" width="5" height="5" rx="1" /><rect x="12" y="3" width="5" height="5" rx="1" /><rect x="3" y="12" width="5" height="5" rx="1" /><rect x="12" y="12" width="5" height="5" rx="1" /></>}</svg>
+                {mode === "list" ? "List" : "Grid"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {/* UPCOMING FILMS */}
+      {upcomingDates.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 py-20 text-center">
+          {/* Empty state icon ... */}
+          <div className="mb-4 rounded-full bg-zinc-900 p-4 ring-1 ring-zinc-800">
+            <svg className="h-8 w-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
+            </svg>
+          </div>
+          <p className="text-lg font-medium text-zinc-200">No upcoming screenings</p>
+          <p className="text-sm text-zinc-500">Add a film to kickstart the schedule</p>
+        </div>
+      ) : (
+        view === "grid" ? renderGrid(upcomingDates.flatMap(date => upcomingGrouped[date])) : upcomingDates.map(date => renderDateGroup(date, upcomingGrouped[date]))
+      )}
       {/* ADMIN FIX BUTTON */}
       {initial.currentUserEmail === "guus@guuslab.com" && (
         <div className="mb-4 flex items-center justify-between rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
@@ -533,7 +614,7 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
 
           {showPast && (
             <div className="mt-8 space-y-12 animate-in slide-in-from-top-4 fade-in duration-300">
-              {pastDates.map(date => renderDateGroup(date, pastGrouped[date]))}
+              {view === "grid" ? renderGrid(pastDates.flatMap(date => pastGrouped[date])) : pastDates.map(date => renderDateGroup(date, pastGrouped[date]))}
             </div>
           )}
         </div>
@@ -561,27 +642,13 @@ export function BoardClient({ initial }: { initial: ApiResponse }) {
 
           {showPastReleases && (
             <div className="mt-8 space-y-12 animate-in slide-in-from-top-4 fade-in duration-300">
-              {pastReleaseDates.map(date => renderDateGroup(date, pastReleasesGrouped[date], true))}
+              {view === "grid" ? renderGrid(pastReleaseDates.flatMap(date => pastReleasesGrouped[date])) : pastReleaseDates.map(date => renderDateGroup(date, pastReleasesGrouped[date], true))}
             </div>
           )}
         </div>
       )}
 
-      {/* UPCOMING FILMS */}
-      {upcomingDates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-800 bg-zinc-900/30 py-20 text-center">
-          {/* Empty state icon ... */}
-          <div className="mb-4 rounded-full bg-zinc-900 p-4 ring-1 ring-zinc-800">
-            <svg className="h-8 w-8 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z" />
-            </svg>
-          </div>
-          <p className="text-lg font-medium text-zinc-200">No upcoming screenings</p>
-          <p className="text-sm text-zinc-500">Add a film to kickstart the schedule</p>
-        </div>
-      ) : (
-        upcomingDates.map(date => renderDateGroup(date, upcomingGrouped[date]))
-      )}
+
     </div>
   );
 }
