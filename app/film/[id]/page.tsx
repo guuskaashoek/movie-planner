@@ -6,6 +6,7 @@ import { films, attendees, users, filmRatings, filmTickets } from "@/lib/db/sche
 import { eq, sql } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
 import { getPollData } from "@/lib/poll";
+import { ticketWindowOpen } from "@/lib/ticket-access";
 import { getComments } from "@/lib/comments";
 import { FilmDetailClient } from "./FilmDetailClient";
 
@@ -90,7 +91,9 @@ export default async function FilmDetailPage({
     .select({ count: sql<number>`count(*)` })
     .from(filmTickets)
     .where(eq(filmTickets.filmId, filmId));
-  const admissionTicketCount = Number(ticketCountRows[0]?.count ?? 0);
+  const admissionTicketCount = ticketWindowOpen({ date, endTime }, new Date())
+    ? Number(ticketCountRows[0]?.count ?? 0)
+    : 0;
   const tickets = isGoing && admissionTicketCount > 0
     ? await db
         .select({

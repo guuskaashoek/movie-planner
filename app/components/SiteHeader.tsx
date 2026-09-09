@@ -1,9 +1,34 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
+function syncVisibleViewport() {
+  const root = document.documentElement;
+  const visible = window.visualViewport?.height ?? window.innerHeight;
+  const nav = document.querySelector(".mobile-nav");
+  const navVisible = nav instanceof HTMLElement && getComputedStyle(nav).display !== "none";
+  const navHeight = navVisible ? Math.round(nav.getBoundingClientRect().height) : 0;
+  root.style.setProperty("--vvh", `${visible}px`);
+  if (navHeight > 0) root.style.setProperty("--mobile-nav", `${navHeight}px`);
+}
+
 export function SiteHeader({ signedIn, isAdmin }: { signedIn: boolean; isAdmin: boolean }) {
+  useEffect(() => {
+    syncVisibleViewport();
+    const view = window.visualViewport;
+    view?.addEventListener("resize", syncVisibleViewport);
+    view?.addEventListener("scroll", syncVisibleViewport);
+    window.addEventListener("resize", syncVisibleViewport);
+    window.addEventListener("orientationchange", syncVisibleViewport);
+    return () => {
+      view?.removeEventListener("resize", syncVisibleViewport);
+      view?.removeEventListener("scroll", syncVisibleViewport);
+      window.removeEventListener("resize", syncVisibleViewport);
+      window.removeEventListener("orientationchange", syncVisibleViewport);
+    };
+  }, []);
   const path = usePathname();
   const params = useSearchParams();
   const preview = path.startsWith("/preview");

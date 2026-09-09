@@ -15,6 +15,7 @@ export function CinemaTicket({
   title,
   date,
   startTime,
+  endTime,
   formats,
   label,
   ticketId,
@@ -27,6 +28,7 @@ export function CinemaTicket({
   title: string;
   date: string | null;
   startTime: string | null;
+  endTime: string | null;
   formats: string | null;
   label: string;
   ticketId: number;
@@ -59,7 +61,7 @@ export function CinemaTicket({
           </div>
           <div>
             <dt>Time</dt>
-            <dd>{startTime || "TBA"}</dd>
+            <dd>{startTime ? `${startTime}${endTime ? ` – ${endTime}` : ""}` : "TBA"}</dd>
           </div>
           <div>
             <dt>No.</dt>

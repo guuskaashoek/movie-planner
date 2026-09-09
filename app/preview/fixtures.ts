@@ -1,5 +1,4 @@
 import type { Film } from "@/app/board/BoardClient";
-import { amsterdamClock } from "@/lib/board-discovery";
 import { buildTicketWallet } from "@/lib/ticket-access";
 
 export function previewFilms(now: Date): Film[] {
@@ -29,6 +28,7 @@ export function previewTickets(now: Date) {
         title: dune.title,
         date: dune.date,
         startTime: dune.startTime,
+        endTime: dune.endTime,
         formats: dune.formats,
         posterUrl: dune.posterUrl,
         isDirectlyGoing: true,
@@ -42,6 +42,7 @@ export function previewTickets(now: Date) {
         title: dune.title,
         date: dune.date,
         startTime: dune.startTime,
+        endTime: dune.endTime,
         formats: dune.formats,
         posterUrl: dune.posterUrl,
         isDirectlyGoing: true,
@@ -55,12 +56,13 @@ export function previewTickets(now: Date) {
         title: interstellar.title,
         date: interstellar.date,
         startTime: interstellar.startTime,
+        endTime: interstellar.endTime,
         formats: interstellar.formats,
         posterUrl: interstellar.posterUrl,
         isDirectlyGoing: true,
         votedForWinningPollOption: false,
       },
     ],
-    amsterdamClock(now).date
+    now
   );
 }

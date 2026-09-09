@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mayViewAdmissionTickets, buildTicketWallet } from "../lib/ticket-access.ts";
+import { mayViewAdmissionTickets, buildTicketWallet, ticketWindowOpen } from "../lib/ticket-access.ts";
 import { admitCopy, parseTicketLabel } from "../lib/ticket-label.ts";
 
 test("ticket access requires attendance", () => {
@@ -21,6 +21,7 @@ test("ticket labels accept a seat range", () => {
 });
 
 test("wallet groups visible tickets by film and hides the rest", () => {
+  const now = new Date("2026-09-09T08:00:00Z");
   const row = (id, filmId, going, extra = {}) => ({
     id,
     label: `Seat ${id}`,
@@ -29,6 +30,7 @@ test("wallet groups visible tickets by film and hides the rest", () => {
     title: filmId === 1 ? "Dune" : "Other",
     date: "2026-09-20",
     startTime: "20:00",
+    endTime: "23:00",
     formats: null,
     posterUrl: null,
     isDirectlyGoing: going,
@@ -40,7 +42,15 @@ test("wallet groups visible tickets by film and hides the rest", () => {
     row(2, 1, true),
     row(3, 2, false),
     row(4, 3, false, { date: "2026-09-01", title: "Past", isDirectlyGoing: true }),
-  ], "2026-09-09");
+  ], now);
   assert.deepEqual(wallet.upcoming.map((group) => [group.filmId, group.tickets.map((ticket) => ticket.id)]), [[1, [1, 2]]]);
-  assert.deepEqual(wallet.past.map((group) => group.filmId), [3]);
+  assert.deepEqual(wallet.past.map((group) => group.filmId), []);
+});
+
+test("tickets hide after the screening end time in Amsterdam", () => {
+  const during = new Date("2026-09-09T08:00:00Z");
+  const after = new Date("2026-09-09T21:30:00Z");
+  assert.equal(ticketWindowOpen({ date: "2026-09-09", endTime: "23:00" }, during), true);
+  assert.equal(ticketWindowOpen({ date: "2026-09-09", endTime: "23:00" }, after), false);
+  assert.equal(ticketWindowOpen({ date: "2026-09-10", endTime: "22:00" }, after), true);
 });

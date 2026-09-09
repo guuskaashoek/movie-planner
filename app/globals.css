@@ -40,8 +40,8 @@ button { touch-action: manipulation; }
 .page-frame { max-width:42rem; margin:0 auto; padding:24px 16px 56px; }
 .page-frame-wide { max-width:64rem; margin:0 auto; padding:24px 16px 56px; }
 @media (max-width:639px) {
-  :root { --mobile-nav: 64px; }
-  body { padding-bottom:calc(var(--mobile-nav) + env(safe-area-inset-bottom, 0px)); }
+  :root { --mobile-nav: 64px; --vvh: 100dvh; }
+  body { padding-bottom: var(--mobile-nav); }
   .site-header-inner { padding:7px 16px; }
   .site-brand { font-size:18px; }
   .site-brand img { width:26px; height:26px; }

@@ -9,6 +9,7 @@ import { eq, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { signPosterUrl } from "@/lib/s3";
 import { getPollData } from "@/lib/poll";
+import { ticketWindowOpen } from "@/lib/ticket-access";
 
 function hasFilmEnded(date: string | null, endTime: string | null) {
   if (!date) return false;
@@ -132,7 +133,9 @@ export default async function BoardPage() {
         interestedUsers,
         isGoing,
         isInterested,
-        admissionTicketCount: admissionByFilm.get(film.id) ?? 0,
+        admissionTicketCount: ticketWindowOpen({ date, endTime }, new Date())
+          ? (admissionByFilm.get(film.id) ?? 0)
+          : 0,
         poll,
         canRate: isGoing && hasFilmEnded(date, endTime),
         myRating,

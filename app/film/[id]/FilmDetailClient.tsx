@@ -310,6 +310,7 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
                     title={film.title}
                     date={film.date}
                     startTime={film.startTime}
+                    endTime={film.endTime}
                     formats={film.formats}
                     label={ticket.label}
                     ticketId={ticket.id}

@@ -49,6 +49,7 @@ export function TicketsWallet({
                     title={group.title}
                     date={group.date}
                     startTime={group.startTime}
+                    endTime={group.endTime}
                     formats={group.formats}
                     label={ticket.label}
                     ticketId={ticket.id}
@@ -72,6 +73,7 @@ export function TicketsWallet({
                     title={group.title}
                     date={group.date}
                     startTime={group.startTime}
+                    endTime={group.endTime}
                     formats={group.formats}
                     label={ticket.label}
                     ticketId={ticket.id}

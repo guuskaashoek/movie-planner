@@ -17,8 +17,7 @@ import { importPosterFromUrl } from "@/lib/images";
 import { getPollData } from "@/lib/poll";
 import { getComments } from "@/lib/comments";
 import { publishLiveEvent } from "@/lib/live";
-import { buildTicketWallet, mayViewAdmissionTickets } from "@/lib/ticket-access";
-import { amsterdamClock } from "@/lib/board-discovery";
+import { buildTicketWallet, mayViewAdmissionTickets, ticketWindowOpen } from "@/lib/ticket-access";
 import { decodeQrPayload, qrSvg } from "@/lib/ticket-qr";
 import { type Actor, canManageFilm, canManageComment, resolveRole } from "@/lib/authz";
 
@@ -554,6 +553,13 @@ export async function getFilmTicketForViewer(actor: Actor, filmId: number, ticke
   })) {
     throw new ServiceError("Mark yourself as going before opening tickets", 403);
   }
+  const winner = poll?.options.find((option) => option.isWinning) ?? null;
+  if (!ticketWindowOpen({
+    date: winner?.date ?? film.date,
+    endTime: winner?.endTime ?? film.endTime,
+  }, new Date())) {
+    throw new ServiceError("This ticket is no longer available", 410);
+  }
   const [ticket] = await db
     .select({
       id: filmTickets.id,
@@ -589,6 +595,7 @@ export async function listMyTickets(actor: Actor) {
       title: films.title,
       date: films.date,
       startTime: films.startTime,
+      endTime: films.endTime,
       formats: films.formats,
       posterUrl: films.posterUrl,
       allowMultiVote: films.allowMultiVote,
@@ -619,6 +626,7 @@ export async function listMyTickets(actor: Actor) {
       title: row.title,
       date: winner?.date ?? row.date,
       startTime: winner?.startTime ?? row.startTime,
+      endTime: winner?.endTime ?? row.endTime,
       formats: row.formats,
       posterUrl: row.posterUrl,
       isDirectlyGoing: going.has(row.filmId),
@@ -626,7 +634,7 @@ export async function listMyTickets(actor: Actor) {
     });
   }
 
-  const wallet = buildTicketWallet(walletRows, amsterdamClock(new Date()).date);
+  const wallet = buildTicketWallet(walletRows, new Date());
   for (const group of [...wallet.upcoming, ...wallet.past]) {
     group.posterUrl = await signPosterUrl(group.posterUrl);
   }

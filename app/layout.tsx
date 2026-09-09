@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: "Movie Planner",
   description: "Plan your next movie night together.",
   icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#000000",
 };
 
 export default async function RootLayout({
