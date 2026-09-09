@@ -17,6 +17,9 @@ test("ticket labels accept a seat range", () => {
   assert.deepEqual(parseTicketLabel("Row 8 · Seats 12-14"), { hall: null, row: "8", seats: "12–14", count: 3 });
   assert.deepEqual(parseTicketLabel("Rij 8 stoel 12"), { hall: null, row: "8", seats: "12", count: 1 });
   assert.deepEqual(parseTicketLabel("Zaal 6 · Rij 8 · Seats 12-14"), { hall: "6", row: "8", seats: "12–14", count: 3 });
+  assert.deepEqual(parseTicketLabel("Rij: 8, Stoel: 12-14"), { hall: null, row: "8", seats: "12–14", count: 3 });
+  assert.deepEqual(parseTicketLabel("Zaal 9 / Rij 8 / stoel 12 t/m 14"), { hall: "9", row: "8", seats: "12–14", count: 3 });
+  assert.deepEqual(parseTicketLabel("Guus"), { hall: null, row: null, seats: null, count: null });
   assert.equal(admitCopy(3), "Admit 3");
   assert.equal(admitCopy(1), "Admit one");
 });

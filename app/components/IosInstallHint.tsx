@@ -29,6 +29,11 @@ export function IosInstallHint() {
     setShow(true);
   }, []);
 
+  useEffect(() => {
+    document.documentElement.classList.toggle("has-ios-install-hint", show);
+    return () => document.documentElement.classList.remove("has-ios-install-hint");
+  }, [show]);
+
   if (!show) return null;
 
   return (

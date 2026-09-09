@@ -104,7 +104,7 @@
   content: "";
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 0;
   pointer-events: none;
   opacity: 0.12;
   mix-blend-mode: multiply;
@@ -184,11 +184,19 @@
   box-sizing: border-box;
 }
 
+.cinema-ticket-hall {
+  margin: 0;
+  color: #3d382c;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
 .cinema-ticket-place {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.4fr;
+  grid-template-columns: 1fr 1fr;
   width: 100%;
-  gap: 8px;
+  gap: 12px;
   padding: 8px 0 0;
   border-top: 1px solid var(--ticket-rule);
 }
@@ -213,12 +221,14 @@
 
 .cinema-ticket-place strong {
   display: block;
-  margin-top: 3px;
+  margin-top: 2px;
+  color: #16130c;
+  -webkit-text-fill-color: #16130c;
   font-family: var(--font-display), var(--font-geist-sans), sans-serif;
-  font-size: 20px;
+  font-size: 28px;
   font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
   overflow-wrap: anywhere;
 }
 

@@ -417,7 +417,7 @@ export const TOOLS: ToolDefinition[] = [
       properties: {
         ...filmIdProp,
         imageUrl: { type: "string", description: "Public direct URL to the original JPEG, PNG, WebP or AVIF ticket image." },
-        label: { type: "string", description: "Short identifier such as 'Row 8 · Seats 12-14', 'Row 8 · Seat 12', or a name." },
+        label: { type: "string", description: "Always copy zaal/hall, rij/row and stoel/seat from the ticket photo, e.g. 'Zaal 6 · Rij 8 · Seats 12-14'. A name alone hides the seat numbers." },
         qrPayload: { type: "string", description: "Exact QR contents from the ticket. Only needed when the photo cannot be decoded. Never invent this." },
       },
       required: ["filmId", "imageUrl"],

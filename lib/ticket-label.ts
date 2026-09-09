@@ -1,10 +1,25 @@
+const TOKEN = String.raw`[:.\-–—]?\s*(?:nr\.?|no\.?|#)?\s*`;
+const SEAT_CHUNK = String.raw`[a-z0-9]+(?:\s*(?:[-–—]|t\/m|tot(?:\s+en\s+met)?)\s*[a-z0-9]+)?(?:\s*[,/&]\s*[a-z0-9]+)*`;
+
 /** Parse a ticket label such as "Zaal 6 · Rij 8 · Seats 12-14". */
 export function parseTicketLabel(label: string) {
-  const hall = /\b(?:zaal|hall|screen)\s*([a-z0-9]+)/i.exec(label)?.[1] ?? null;
-  const row = /\b(?:row|rij)\s*([a-z0-9]+)/i.exec(label)?.[1] ?? null;
-  const seatsRaw = /\b(?:seats?|stoelen?|stoel)\s*([a-z0-9]+(?:\s*[-–—]\s*[a-z0-9]+)?(?:\s*[,/&]\s*[a-z0-9]+)*)/i.exec(label)?.[1] ?? null;
-  const seats = seatsRaw ? seatsRaw.replace(/\s+/g, "").replace(/[-–—]/g, "–") : null;
+  const hall = pick(label, String.raw`\b(?:zaal|hall|screens?|salle)\b${TOKEN}([a-z0-9]+)`);
+  const row = pick(label, String.raw`\b(?:row|rij|rang|fila)\b${TOKEN}([a-z0-9]+)`);
+  const seats = normaliseSeats(pick(label, String.raw`\b(?:seats|seat|stoelen|stoel|plaatsen|plaats)\b${TOKEN}(${SEAT_CHUNK})`));
   return { hall, row, seats, count: countSeats(seats) };
+}
+
+function pick(label: string, pattern: string) {
+  return new RegExp(pattern, "i").exec(label)?.[1] ?? null;
+}
+
+function normaliseSeats(raw: string | null) {
+  if (!raw) return null;
+  return raw
+    .replace(/\s+/g, "")
+    .replace(/t\/m/gi, "–")
+    .replace(/totenmet/gi, "–")
+    .replace(/[-–—]/g, "–");
 }
 
 function countSeats(seats: string | null) {

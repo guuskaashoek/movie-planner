@@ -62,12 +62,9 @@ export function CinemaTicket({
       <div className="cinema-ticket-perf" aria-hidden="true" />
       <div className="cinema-ticket-stub">
         <img className="ticket-qr" src={qrSrc} alt={`QR code for ${title}, ${label}`} />
-        {parsed.hall || parsed.row || parsed.seats ? (
+        {parsed.hall && <p className="cinema-ticket-hall">Hall {parsed.hall}</p>}
+        {parsed.row || parsed.seats ? (
           <div className="cinema-ticket-place">
-            <div>
-              <span>Hall</span>
-              <strong>{parsed.hall ?? "—"}</strong>
-            </div>
             <div>
               <span>Row</span>
               <strong>{parsed.row ?? "—"}</strong>
