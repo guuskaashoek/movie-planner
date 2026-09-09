@@ -56,7 +56,6 @@ export function TicketsWallet({
                     posterUrl={group.posterUrl}
                     qrSrc={preview ? "/preview/sample-qr.svg" : `/api/films/${group.filmId}/tickets/${ticket.id}/qr`}
                     filmHref={filmHref(group.filmId)}
-                    photoHref={preview ? undefined : `/api/films/${group.filmId}/tickets/${ticket.id}`}
                   />
                 ))}
               </div>
@@ -80,7 +79,6 @@ export function TicketsWallet({
                     posterUrl={group.posterUrl}
                     qrSrc={preview ? "/preview/sample-qr.svg" : `/api/films/${group.filmId}/tickets/${ticket.id}/qr`}
                     filmHref={filmHref(group.filmId)}
-                    photoHref={preview ? undefined : `/api/films/${group.filmId}/tickets/${ticket.id}`}
                   />
                 ))}
               </div>

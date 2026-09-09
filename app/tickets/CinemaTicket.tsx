@@ -21,7 +21,6 @@ export function CinemaTicket({
   ticketId,
   qrSrc,
   filmHref,
-  photoHref,
   posterUrl,
 }: {
   filmId: number;
@@ -34,7 +33,6 @@ export function CinemaTicket({
   ticketId: number;
   qrSrc: string;
   filmHref: string;
-  photoHref?: string;
   posterUrl?: string | null;
 }) {
   const parsed = parseTicketLabel(label);
@@ -95,11 +93,6 @@ export function CinemaTicket({
             </div>
           )}
         </div>
-        {photoHref && (
-          <a className="cinema-ticket-photo" href={photoHref} target="_blank" rel="noopener noreferrer">
-            Original photo
-          </a>
-        )}
       </div>
     </article>
   );

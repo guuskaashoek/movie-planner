@@ -317,7 +317,6 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
                     posterUrl={film.posterUrl}
                     qrSrc={`/api/films/${film.id}/tickets/${ticket.id}/qr`}
                     filmHref={`/film/${film.id}`}
-                    photoHref={`/api/films/${film.id}/tickets/${ticket.id}`}
                   />
                 ))}
               </div>
