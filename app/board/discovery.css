@@ -91,6 +91,14 @@
   text-underline-offset: 3px;
 }
 
+.feature-crowd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  margin-top: 12px;
+}
+
 .feature-actions {
   display: flex;
   flex-wrap: wrap;

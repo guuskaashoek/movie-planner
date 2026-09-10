@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FilmQuickActions } from "@/app/components/FilmQuickActions";
+import { PersonAvatars } from "@/app/components/PersonAvatars";
 import { discoverFilms, goingTo, ticketState } from "@/lib/board-discovery";
 import type { Film } from "./BoardClient";
 import "./discovery.css";
@@ -62,10 +63,17 @@ export function BoardSpotlight({
         <div className="feature-shade" />
         <div className="feature-body">
           <h1 id="featured-title">{featured.title}</h1>
-          <p className="feature-line">
-            {metaLine(featured)}
-            {crowd.length > 0 ? `  ·  ${crowd.length} going` : ""}
-          </p>
+          <p className="feature-line">{metaLine(featured)}</p>
+          {(crowd.length > 0 || featured.interestedUsers.length > 0) && (
+            <div className="feature-crowd">
+              <PersonAvatars people={crowd} tone="on-media" caption={`${crowd.length} going`} />
+              <PersonAvatars
+                people={featured.interestedUsers}
+                tone="on-media"
+                caption={`${featured.interestedUsers.length} liked`}
+              />
+            </div>
+          )}
           {status !== "unknown" && (
             <p className="feature-tickets">
               {status === "open"
@@ -139,6 +147,7 @@ export function BoardSpotlight({
                     ? `${day(film.date)}${film.startTime ? ` · ${film.startTime}` : ""}`
                     : "Pick a date"}
                 </p>
+                <PersonAvatars people={goingTo(film)} size="xs" max={4} className="mt-1.5" />
               </Link>
             ))}
           </div>

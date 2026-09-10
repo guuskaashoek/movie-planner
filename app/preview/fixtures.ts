@@ -3,7 +3,10 @@ import { buildTicketWallet } from "@/lib/ticket-access";
 
 export function previewFilms(now: Date): Film[] {
   const date = (days: number) => new Date(now.getTime() + days * 86_400_000).toISOString().slice(0, 10);
-  const people = ["Guus", "Sam", "Mila", "Alex"].map((name, index) => ({ id: index + 1, name, email: `${name.toLowerCase()}@example.com`, image: null }));
+  // Inline portraits keep the preview offline while still showing real photos.
+  const portrait = (hue: number) => `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="hsl(${hue} 45% 32%)"/><circle cx="32" cy="24" r="11" fill="hsl(${hue} 45% 78%)"/><circle cx="32" cy="60" r="19" fill="hsl(${hue} 45% 78%)"/></svg>`)}`;
+  // Alex has no photo, so the preview also covers the initials fallback.
+  const people = ["Guus", "Sam", "Mila", "Alex"].map((name, index) => ({ id: index + 1, name, email: `${name.toLowerCase()}@example.com`, image: index === 3 ? null : portrait(90 + index * 70) }));
   const base: Film = { id: 1, title: "", description: null, date: date(7), releaseDate: null, startTime: "20:00", endTime: "23:00", posterUrl: null, backdropUrl: null, isMajorRelease: false, formats: "IMAX", ticketsOnSaleDate: null, ticketsOnSaleTime: null, ticketsUrl: null, admissionTicketCount: 0, inviteToken: null, goingUsers: [], interestedUsers: [], isGoing: false, isInterested: false, canRate: false, myRating: null, averageRating: null, ratingCount: 0, poll: null };
   return [
     { ...base, id: 1, title: "Dune: Part Two", description: "Some films deserve the biggest screen you can find. Back to Arrakis, together. This is our kind of movie night.", posterUrl: "/preview/dune.webp", backdropUrl: "/preview/dune-backdrop.webp", isMajorRelease: true, formats: "IMAX,70MM", date: date(12), ticketsOnSaleDate: date(1), ticketsOnSaleTime: "10:00", ticketsUrl: "https://www.pathe.nl", admissionTicketCount: 2, goingUsers: people.slice(0, 3), interestedUsers: people },
