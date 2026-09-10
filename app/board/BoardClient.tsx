@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FilmQuickActions } from "@/app/components/FilmQuickActions";
+import { PersonAvatars } from "@/app/components/PersonAvatars";
 import { goingTo } from "@/lib/board-discovery";
 import { BoardSpotlight } from "./BoardSpotlight";
 import { PollVoter, type Poll } from "@/app/components/PollVoter";
@@ -250,6 +251,22 @@ export function BoardClient({ initial, preview = false }: { initial: ApiResponse
     return a.localeCompare(b);
   });
 
+  /** Who is going and who liked the film, as profile photos. */
+  const renderCrowd = (film: Film, size: "xs" | "sm" = "sm", className = "") => {
+    const going = goingTo(film);
+    if (going.length === 0 && film.interestedUsers.length === 0) return null;
+    return (
+      <div className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${className}`}>
+        <PersonAvatars people={going} size={size} caption={`${going.length} going`} />
+        <PersonAvatars
+          people={film.interestedUsers}
+          size={size}
+          caption={`${film.interestedUsers.length} liked`}
+        />
+      </div>
+    );
+  };
+
   const renderActions = (film: Film, compact = false) => (
     <FilmQuickActions title={film.title} liked={film.isInterested} going={film.isGoing} hasScreening={!!film.date && !!film.startTime} hasPoll={!!film.poll} likes={film.interestedUsers.length} goingCount={goingTo(film).length} href={filmHref(film.id)} onLike={() => toggleInterested(film.id, film.isInterested)} onGoing={() => toggleGoing(film.id, film.isGoing)} compact={compact} />
   );
@@ -279,6 +296,7 @@ export function BoardClient({ initial, preview = false }: { initial: ApiResponse
             {(film.admissionTicketCount ?? 0) > 0 && <p className="mt-1 text-xs font-medium text-lime-200">We have tickets</p>}
             {film.poll && <p className="mt-1 text-xs text-amber-300">Vote on a date →</p>}
           </Link>
+          {renderCrowd(film, "xs", "mt-2")}
           {renderActions(film, true)}
         </article>
       ))}
@@ -424,7 +442,7 @@ export function BoardClient({ initial, preview = false }: { initial: ApiResponse
 
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       {renderActions(film)}
-                      {goingTo(film).length > 0 && <span className="text-xs text-zinc-500">{goingTo(film).length} going</span>}
+                      {renderCrowd(film)}
                     </div>
 
                     {/* Poll: vote on a screening time */}

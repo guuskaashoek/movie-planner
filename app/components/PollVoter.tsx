@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PersonAvatars } from "@/app/components/PersonAvatars";
 
 type Voter = {
   id: number;
@@ -147,30 +148,7 @@ export function PollVoter({
                   </div>
 
                   <div className="mt-1 flex items-center gap-2">
-                    {option.voters.length > 0 ? (
-                      <div className="flex -space-x-1.5 overflow-hidden">
-                        {option.voters.slice(0, 5).map((v) => (
-                          <div
-                            key={v.id}
-                            className="inline-block h-5 w-5 rounded-full ring-2 ring-zinc-950"
-                            title={v.name || v.email}
-                          >
-                            {v.image ? (
-                              <img
-                                src={v.image}
-                                alt=""
-                                className="h-full w-full rounded-full object-cover"
-                                referrerPolicy="no-referrer"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center rounded-full bg-zinc-700 text-[8px] font-bold text-white">
-                                {(v.name?.[0] || v.email[0]).toUpperCase()}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
+                    <PersonAvatars people={option.voters} size="xs" />
                     <span className="text-xs text-zinc-500">
                       {option.voteCount} {option.voteCount === 1 ? "vote" : "votes"}
                     </span>
