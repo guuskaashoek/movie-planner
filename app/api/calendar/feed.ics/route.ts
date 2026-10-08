@@ -6,6 +6,12 @@ import { eq, inArray } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
 import { getPollData } from "@/lib/poll";
 
+// Comma-separated list of emails that trigger the grape reminder when they are all attending.
+const GRAPE_REMINDER_EMAILS = (process.env.GRAPE_REMINDER_EMAILS ?? "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 export async function GET(req: NextRequest) {
   // Get user's share ID from query params
   const { searchParams } = new URL(req.url);
@@ -170,10 +176,11 @@ export async function GET(req: NextRequest) {
       description: description || undefined,
     });
 
-    // If both special attendees are going, add a "don't forget grapes" reminder 30 min before
-    const GRAPE_REMINDER_EMAILS = ["sherlockgnomezz@gmail.com", "lordofthegalaxyman@gmail.com"];
+    // If every configured special attendee is going, add a "don't forget grapes" reminder 30 min before.
+    // The emails come from GRAPE_REMINDER_EMAILS; when it is unset the reminder is skipped.
     const attendeeEmails = attendeeList.map((a) => a.email?.toLowerCase() ?? "");
-    const bothPresent = GRAPE_REMINDER_EMAILS.every((e) => attendeeEmails.includes(e));
+    const bothPresent =
+      GRAPE_REMINDER_EMAILS.length > 0 && GRAPE_REMINDER_EMAILS.every((e) => attendeeEmails.includes(e));
 
     if (bothPresent && !allDay) {
       const reminderStart = new Date(start.getTime() - 30 * 60 * 1000);
