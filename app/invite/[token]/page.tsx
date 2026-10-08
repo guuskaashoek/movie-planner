@@ -120,7 +120,7 @@ export default async function InvitePage({
       {/* Header */}
       <div className="mb-8 text-center">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          You're invited to a screening
+          You&apos;re invited to a screening
         </p>
       </div>
 
@@ -302,7 +302,7 @@ export default async function InvitePage({
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-green-300">You're already going!</p>
+                  <p className="text-sm font-semibold text-green-300">You&apos;re already going!</p>
                   <p className="text-xs text-green-400/70">See you at the screening</p>
                 </div>
               </div>
@@ -311,7 +311,7 @@ export default async function InvitePage({
             ) : (
               <div className="space-y-3">
                 <p className="text-center text-sm text-zinc-400">
-                  Sign in to confirm you're going
+                  Sign in to confirm you&apos;re going
                 </p>
                 <form
                   action={async () => {

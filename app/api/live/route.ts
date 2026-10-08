@@ -1,9 +1,8 @@
-import { NextRequest } from "next/server";
 import { subscribeLiveEvents } from "@/lib/live";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   let ping: ReturnType<typeof setInterval> | undefined;
   let unsubscribe: (() => void) | undefined;
   let closed = false;

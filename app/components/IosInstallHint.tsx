@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "mp-ios-install-dismissed";
 
@@ -16,18 +16,24 @@ function isStandalone() {
   return window.matchMedia("(display-mode: standalone)").matches || ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
 }
 
-export function IosInstallHint() {
-  const [show, setShow] = useState(false);
+function shouldOfferInstall() {
+  if (isStandalone() || !isIosSafari()) return false;
+  try {
+    if (localStorage.getItem(STORAGE_KEY) === "1") return false;
+  } catch {
+    // Private mode can block localStorage; still show the hint.
+  }
+  return true;
+}
 
-  useEffect(() => {
-    if (isStandalone() || !isIosSafari()) return;
-    try {
-      if (localStorage.getItem(STORAGE_KEY) === "1") return;
-    } catch {
-      // Private mode can block localStorage; still show the hint.
-    }
-    setShow(true);
-  }, []);
+// The browser facts we read never change while the page is open, so there is nothing to subscribe to.
+const subscribe = () => () => {};
+
+export function IosInstallHint() {
+  // Server render and hydration see `false`; the client then re-renders with the real value.
+  const eligible = useSyncExternalStore(subscribe, shouldOfferInstall, () => false);
+  const [dismissed, setDismissed] = useState(false);
+  const show = eligible && !dismissed;
 
   useEffect(() => {
     document.documentElement.classList.toggle("has-ios-install-hint", show);
@@ -50,7 +56,7 @@ export function IosInstallHint() {
           } catch {
             /* ignore */
           }
-          setShow(false);
+          setDismissed(true);
         }}
       >
         Dismiss

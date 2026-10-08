@@ -20,7 +20,6 @@ export async function migrateToCollaborativeSchema() {
 
         // For each film, create attendee record for the creator
         for (const film of existingFilms) {
-            // @ts-ignore - createdBy exists in new schema
             const creatorId = film.createdBy;
 
             // Check if attendee record already exists

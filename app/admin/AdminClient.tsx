@@ -242,7 +242,6 @@ export function AdminClient({ currentUserId, stats, users, films, total }: Props
               className="flex flex-wrap items-center gap-3 rounded-md border border-zinc-800 bg-black px-4 py-3"
             >
               {film.posterUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={film.posterUrl}
                   alt=""
