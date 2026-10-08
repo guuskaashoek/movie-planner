@@ -27,8 +27,8 @@ export function InviteJoinButton({ filmId }: { filmId: number }) {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-semibold text-green-300">You're going!</p>
-            <p className="text-xs text-green-400/70">You've been added to this screening</p>
+            <p className="text-sm font-semibold text-green-300">You&apos;re going!</p>
+            <p className="text-xs text-green-400/70">You&apos;ve been added to this screening</p>
           </div>
         </div>
         <button

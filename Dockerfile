@@ -2,37 +2,26 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install build dependencies for native modules
-RUN apk add --no-cache python3 make g++ git curl unzip bash
+# Build tools for native modules (better-sqlite3, sharp) when no prebuilt binary matches
+RUN apk add --no-cache python3 make g++
 
-# Install bun
-RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="~/.bun/bin:${PATH}"
-RUN ln -s ~/.bun/bin/bun /usr/local/bin/bun
-
-# Copy package files first for better caching
-COPY package*.json ./
-COPY bun.lock* ./
-
-# Install dependencies
-RUN bun install || npm install
+# Install dependencies from the lockfile first for better layer caching.
+# devDependencies stay installed: the start script runs drizzle-kit migrations.
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
 # Copy source code
 COPY . .
 
-
+# Dummy values so Next.js can prerender at build time; real values come from the runtime env
 ENV DATABASE_URL="file:./local.db"
 ENV NEXTAUTH_SECRET="dummy_secret_for_build_purposes_only"
 ENV NEXTAUTH_URL="http://localhost:3000"
 
-
-
-
 # Build Next.js
-RUN bun run build || npm run build
+RUN npm run build
 
-# Expose port
 EXPOSE 3000
 
-# Start
-CMD ["bun", "run", "start"]
+# Applies Drizzle migrations, then starts Next.js (see scripts/start-prod.sh)
+CMD ["npm", "run", "start"]

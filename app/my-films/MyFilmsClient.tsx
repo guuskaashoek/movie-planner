@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths, setHours, setMinutes } from "date-fns";
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from "date-fns";
 import classNames from "classnames";
 
 const FORMAT_OPTIONS = ["IMAX", "4DX", "ScreenX", "3D", "2D", "Dolby Cinema", "Laser Ultra"];
@@ -12,6 +12,20 @@ type Attendee = {
   name: string | null;
   email: string;
   image: string | null;
+};
+
+// Fields the edit form may send to PUT /api/films/[id]; only changed ones are included.
+type FilmUpdateBody = {
+  title?: string;
+  releaseDate?: string | null;
+  date?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  formats?: string | null;
+  ticketsOnSaleDate?: string | null;
+  ticketsOnSaleTime?: string | null;
+  ticketsUrl?: string | null;
+  posterUrl?: string | null;
 };
 
 type Film = {
@@ -382,7 +396,6 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
   const [showPastManaged, setShowPastManaged] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilms(initial.films);
   }, [initial.films]);
 
@@ -548,7 +561,7 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
 
       if (isEditing) {
         // UPDATE existing film - Only send changed fields
-        const body: any = {};
+        const body: FilmUpdateBody = {};
 
         if (isModified('title')) body.title = form.title;
         if (isModified('releaseDate')) body.releaseDate = form.releaseDate || null;
@@ -1082,7 +1095,7 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
         <h3 className="text-lg font-bold text-zinc-100">Managed by You</h3>
 
         {myManagedFilms.length === 0 && pastManagedFilms.length === 0 ? (
-          <p className="text-center text-sm text-zinc-500 py-8 italic">You haven't added any films yet.</p>
+          <p className="text-center text-sm text-zinc-500 py-8 italic">You haven&apos;t added any films yet.</p>
         ) : (
           <div className="space-y-4">
             {myManagedFilms.map((film) => (
