@@ -89,6 +89,15 @@ function isPrivateIPv6(ip: string): boolean {
   // IPv4-mapped (::ffff:a.b.c.d)
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(addr);
   if (mapped) return isPrivateIPv4(mapped[1]);
+  // The URL parser rewrites [::ffff:127.0.0.1] to the hex form [::ffff:7f00:1].
+  const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(addr);
+  if (mappedHex) {
+    const hi = parseInt(mappedHex[1], 16);
+    const lo = parseInt(mappedHex[2], 16);
+    return isPrivateIPv4(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+  }
+  // NAT64 and the deprecated IPv4-compatible form can also reach IPv4 hosts.
+  if (addr.startsWith("64:ff9b:") || /^::[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(addr)) return true;
   return false;
 }
 

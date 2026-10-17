@@ -6,6 +6,10 @@ import { ServiceError, addComment } from "@/lib/films";
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, { params }: RouteParams) {
+  // Comments carry author emails, so only signed-in members may list them.
+  const actor = await getSessionActor();
+  if (!actor) return new NextResponse("Unauthorized", { status: 401 });
+
   const { id: idParam } = await params;
   const filmId = Number(idParam);
   if (!Number.isInteger(filmId)) return new NextResponse("Invalid film ID", { status: 400 });

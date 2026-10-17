@@ -94,17 +94,22 @@ export default async function InvitePage({
   // @ts-expect-error id is added in auth callback
   const userId: number | undefined = session?.user?.id;
 
-  const goingAttendees = await db
-    .select({ id: users.id, name: users.name, email: users.email, image: users.image })
-    .from(attendees)
-    .innerJoin(users, eq(attendees.userId, users.id))
-    .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'going'`);
+  // Invite links travel outside the group (chat previews, forwards), so
+  // anonymous visitors see names only, never members' email addresses.
+  const shown = <T extends { name: string | null; email: string }>(person: T): T =>
+    userId ? person : { ...person, email: person.name || "Guest" };
 
-  const interestedAttendees = await db
+  const goingAttendees = (await db
     .select({ id: users.id, name: users.name, email: users.email, image: users.image })
     .from(attendees)
     .innerJoin(users, eq(attendees.userId, users.id))
-    .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'interested'`);
+    .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'going'`)).map(shown);
+
+  const interestedAttendees = (await db
+    .select({ id: users.id, name: users.name, email: users.email, image: users.image })
+    .from(attendees)
+    .innerJoin(users, eq(attendees.userId, users.id))
+    .where(sql`${attendees.filmId} = ${film.id} AND ${attendees.type} = 'interested'`)).map(shown);
 
   const isAlreadyAttending = userId
     ? goingAttendees.some((a) => a.id === userId)
@@ -112,8 +117,12 @@ export default async function InvitePage({
 
   const posterUrl = await signPosterUrl(film.posterUrl);
   const formats = film.formats ? film.formats.split(",") : [];
-  const poll = await getPollData(film.id, film.allowMultiVote, userId ?? null);
-  const comments = await getComments(film.id);
+  const rawPoll = await getPollData(film.id, film.allowMultiVote, userId ?? null);
+  const poll = rawPoll && {
+    ...rawPoll,
+    options: rawPoll.options.map((o) => ({ ...o, voters: o.voters.map(shown) })),
+  };
+  const comments = (await getComments(film.id)).map((c) => ({ ...c, author: shown(c.author) }));
 
   return (
     <div className="page-frame">
