@@ -35,7 +35,8 @@ export default async function FilmDetailPage({
   const userId: number = session.user.id;
   const actor = await getSessionActor();
   const isAdmin = actor?.isAdmin ?? false;
-  if (!userId) redirect("/");
+  // The JWT outlives a removed member; the DB row decides.
+  if (!userId || !actor) redirect("/");
 
   const { id: idParam } = await params;
   const filmId = Number(idParam);

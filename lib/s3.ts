@@ -1,5 +1,6 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { isStorageUrl } from "@/lib/storage-url";
 
 export const s3 = new S3Client({
     region: process.env.WASABI_REGION ?? "eu-central-1",
@@ -17,7 +18,7 @@ export async function signPosterUrl(url: string | null, expiresIn: number = 3600
     if (!url) return null;
 
     // Check if it's a Wasabi URL
-    if (!url.includes("wasabisys.com")) {
+    if (!isStorageUrl(url)) {
         return url; // Return as is for external images or placeholders
     }
 

@@ -3,6 +3,7 @@ import { isIP } from "net";
 import { randomUUID } from "crypto";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3, BUCKET_NAME } from "@/lib/s3";
+import { isStorageUrl } from "@/lib/storage-url";
 
 export const MAX_POSTER_BYTES = 10 * 1024 * 1024;
 
@@ -210,11 +211,7 @@ export function storageBaseUrl(): string {
  * WASABI_PUBLIC_BASE domain. Such a URL is stored as-is instead of downloaded.
  */
 export function isOwnStorageUrl(url: string | null | undefined): boolean {
-  if (!url) return false;
-  const trimmed = url.trim();
-  if (trimmed.includes("wasabisys.com")) return true;
-  const base = storageBaseUrl();
-  return Boolean(base) && trimmed.startsWith(base);
+  return isStorageUrl(url, storageBaseUrl());
 }
 
 export type ImportedPoster = {

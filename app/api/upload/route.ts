@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getSessionActor } from "@/lib/authz";
 import { BUCKET_NAME } from "@/lib/s3";
 import {
   ALLOWED_UPLOAD_TYPES,
@@ -11,8 +11,9 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session) {
+  // getSessionActor, not auth(): a removed member's JWT stays valid.
+  const actor = await getSessionActor();
+  if (!actor) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

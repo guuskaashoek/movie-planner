@@ -22,6 +22,10 @@ export const {
   callbacks: {
     async signIn({ profile, account }) {
       if (!profile?.email || !account?.providerAccountId) return false;
+      // Membership is keyed on the email address, so only accept one Google
+      // has verified; otherwise an account claiming a member's address could
+      // sign in as them.
+      if (profile.email_verified !== true) return false;
 
       const email = profile.email;
       const googleId = account.providerAccountId;

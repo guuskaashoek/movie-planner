@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getSessionActor } from "@/lib/authz";
 import { db } from "@/lib/db/client";
 import { films, attendees, users, filmRatings } from "@/lib/db/schema";
 import { eq, gte, or, isNull, sql } from "drizzle-orm";
@@ -29,7 +30,7 @@ function hasFilmEnded(date: string | null, endTime: string | null) {
 
 export async function GET(req: NextRequest) {
   const session = await auth();
-  if (!session) {
+  if (!session || !(await getSessionActor())) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 

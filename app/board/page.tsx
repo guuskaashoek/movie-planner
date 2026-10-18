@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { getSessionActor } from "@/lib/authz";
 import { db } from "@/lib/db/client";
 import { films, boardSettings, attendees, users, filmRatings, filmTickets } from "@/lib/db/schema";
 import { BoardClient } from "./BoardClient";
@@ -34,7 +35,8 @@ function hasFilmEnded(date: string | null, endTime: string | null) {
 export default async function BoardPage() {
   const session = await auth();
 
-  if (!session?.user) {
+  // The JWT outlives a removed member, so the DB row decides.
+  if (!session?.user || !(await getSessionActor())) {
     redirect("/");
   }
 

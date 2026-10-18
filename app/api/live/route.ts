@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth";
+import { getSessionActor } from "@/lib/authz";
 import { subscribeLiveEvents } from "@/lib/live";
 
 export const dynamic = "force-dynamic";
@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   // Only the signed-in board and film pages listen; anonymous visitors would
   // just hold connections open.
-  const session = await auth();
-  if (!session) return new Response("Unauthorized", { status: 401 });
+  const actor = await getSessionActor();
+  if (!actor) return new Response("Unauthorized", { status: 401 });
 
   let ping: ReturnType<typeof setInterval> | undefined;
   let unsubscribe: (() => void) | undefined;

@@ -11,7 +11,9 @@ import { signPosterUrl } from "@/lib/s3";
 export default async function MyFilmsPage() {
   const session = await auth();
 
-  if (!session?.user) {
+  // The JWT outlives a removed member, so the DB row decides.
+  const actor = await getSessionActor();
+  if (!session?.user || !actor) {
     redirect("/");
   }
 
@@ -112,8 +114,7 @@ export default async function MyFilmsPage() {
     })
   );
 
-  const actor = await getSessionActor();
-  const isAdmin = actor?.isAdmin ?? false;
+  const isAdmin = actor.isAdmin;
 
   return (
     <div className="space-y-6">
