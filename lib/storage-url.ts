@@ -18,3 +18,9 @@ export function isStorageUrl(url: string | null | undefined, publicBase?: string
   const base = publicBase?.replace(/\/$/, "");
   return Boolean(base) && trimmed.startsWith(`${base}/`);
 }
+
+/** The bucket key of a stored image: the last path segment, without query. */
+export function storageKey(url: string | null | undefined): string | null {
+  if (!url) return null;
+  return url.split("?")[0].split("/").pop() || null;
+}

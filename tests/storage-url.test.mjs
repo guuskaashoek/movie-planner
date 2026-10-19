@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isStorageUrl } from "../lib/storage-url.ts";
+import { isStorageUrl, storageKey } from "../lib/storage-url.ts";
 
 test("our Wasabi URLs count as storage", () => {
   assert.equal(isStorageUrl("https://s3.eu-central-1.wasabisys.com/bucket/abc.jpg"), true);
@@ -17,4 +17,11 @@ test("a URL that only mentions wasabisys.com is not storage", () => {
   assert.equal(isStorageUrl("https://cdn.example.com/postersX/abc.jpg", "https://cdn.example.com/posters"), false);
   assert.equal(isStorageUrl("not a url"), false);
   assert.equal(isStorageUrl(null), false);
+});
+
+test("storageKey is the last path segment without the signature", () => {
+  assert.equal(storageKey("https://s3.eu-central-1.wasabisys.com/bucket/abc.jpg?X-Amz-Signature=1"), "abc.jpg");
+  assert.equal(storageKey("https://bucket.s3.eu-central-1.wasabisys.com/abc.jpg"), "abc.jpg");
+  assert.equal(storageKey("https://s3.eu-central-1.wasabisys.com/bucket/"), null);
+  assert.equal(storageKey(null), null);
 });

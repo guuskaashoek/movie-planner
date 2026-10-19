@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
-import { auth, signIn } from "@/lib/auth";
+import { signIn } from "@/lib/auth";
 import { db } from "@/lib/db/client";
 import { films, attendees, users } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { signPosterUrl } from "@/lib/s3";
+import { isStorageUrl } from "@/lib/storage-url";
+import { getSessionActor } from "@/lib/authz";
 import { InviteJoinButton } from "./InviteJoinButton";
 import { PollVoter } from "@/app/components/PollVoter";
 import { getPollData } from "@/lib/poll";
@@ -51,7 +53,7 @@ export async function generateMetadata({
     .filter(Boolean)
     .join(" — ") || "You're invited to a film screening";
 
-  const ogImageUrl = film.posterUrl?.includes("wasabisys.com")
+  const ogImageUrl = isStorageUrl(film.posterUrl)
     ? `${baseUrl}/api/og-image/${token}`
     : (film.posterUrl ?? undefined);
 
@@ -90,9 +92,8 @@ export default async function InvitePage({
 
   if (!film) notFound();
 
-  const session = await auth();
-  // @ts-expect-error id is added in auth callback
-  const userId: number | undefined = session?.user?.id;
+  // getSessionActor, not auth(): a removed member's JWT stays valid.
+  const userId: number | undefined = (await getSessionActor())?.userId;
 
   // Invite links travel outside the group (chat previews, forwards), so
   // anonymous visitors see names only, never members' email addresses.

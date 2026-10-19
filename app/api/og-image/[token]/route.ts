@@ -4,6 +4,7 @@ import { films } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { s3, BUCKET_NAME } from "@/lib/s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { isStorageUrl, storageKey } from "@/lib/storage-url";
 
 export async function GET(
   _req: NextRequest,
@@ -17,11 +18,11 @@ export async function GET(
     .where(eq(films.inviteToken, token))
     .limit(1);
 
-  if (!film?.posterUrl || !film.posterUrl.includes("wasabisys.com")) {
+  if (!film?.posterUrl || !isStorageUrl(film.posterUrl)) {
     return new Response(null, { status: 404 });
   }
 
-  const key = film.posterUrl.split("/").pop();
+  const key = storageKey(film.posterUrl);
   if (!key || !BUCKET_NAME) {
     return new Response(null, { status: 404 });
   }

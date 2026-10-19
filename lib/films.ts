@@ -14,6 +14,7 @@ import { and, eq, gte, inArray, isNull, like, or, sql, desc } from "drizzle-orm"
 import { randomBytes } from "crypto";
 import { signPosterUrl } from "@/lib/s3";
 import { importPosterFromUrl } from "@/lib/images";
+import { storageKey } from "@/lib/storage-url";
 import { getPollData } from "@/lib/poll";
 import { getComments } from "@/lib/comments";
 import { publishLiveEvent } from "@/lib/live";
@@ -79,6 +80,31 @@ export function hasFilmEnded(date: string | null, endTime: string | null): boole
   const endAt = new Date(now);
   endAt.setHours(h, m, 0, 0);
   return now >= endAt;
+}
+
+/**
+ * Import an image, refusing to re-use the bucket key of an admission ticket.
+ * Every stored image is signed by its key alone, so pointing a poster,
+ * backdrop or new ticket at a ticket photo's key would hand out that photo
+ * without the attendance and time-window checks. A key that already is a
+ * poster or backdrop is visible to every member anyway and may be reused.
+ */
+async function importImage(rawUrl: string) {
+  const imported = await importPosterFromUrl(rawUrl);
+  if (!imported.reused) return imported;
+
+  const key = storageKey(imported.url);
+  if (!key) throw new ServiceError("That image URL has no file name", 400);
+  const tickets = await db.select({ imageUrl: filmTickets.imageUrl }).from(filmTickets);
+  if (!tickets.some((t) => storageKey(t.imageUrl) === key)) return imported;
+
+  const shown = await db
+    .select({ posterUrl: films.posterUrl, backdropUrl: films.backdropUrl })
+    .from(films);
+  if (shown.some((f) => storageKey(f.posterUrl) === key || storageKey(f.backdropUrl) === key)) {
+    return imported;
+  }
+  throw new ServiceError("That image cannot be reused here; upload it again", 400);
 }
 
 async function loadFilm(filmId: number) {
@@ -369,11 +395,11 @@ export async function createFilm(actor: Actor, input: CreateFilmInput) {
 
   let posterUrl: string | null = null;
   if (normalise(input.posterUrl)) {
-    posterUrl = (await importPosterFromUrl(input.posterUrl!)).url;
+    posterUrl = (await importImage(input.posterUrl!)).url;
   }
 
   const backdropUrl = normalise(input.backdropUrl)
-    ? (await importPosterFromUrl(input.backdropUrl!)).url : null;
+    ? (await importImage(input.backdropUrl!)).url : null;
 
   const [inserted] = await db
     .insert(films)
@@ -447,7 +473,7 @@ export async function updateFilm(actor: Actor, filmId: number, patch: UpdateFilm
   }
   if (patch.backdropUrl !== undefined) {
     const raw = normalise(patch.backdropUrl);
-    update.backdropUrl = raw ? (await importPosterFromUrl(raw)).url : null;
+    update.backdropUrl = raw ? (await importImage(raw)).url : null;
   }
 
   if (patch.title !== undefined) {
@@ -472,7 +498,7 @@ export async function updateFilm(actor: Actor, filmId: number, patch: UpdateFilm
 
   if (patch.posterUrl !== undefined) {
     const raw = normalise(patch.posterUrl);
-    update.posterUrl = raw ? (await importPosterFromUrl(raw)).url : null;
+    update.posterUrl = raw ? (await importImage(raw)).url : null;
   }
 
   if (Object.keys(update).length === 0) {
@@ -487,7 +513,7 @@ export async function updateFilm(actor: Actor, filmId: number, patch: UpdateFilm
 
 export async function setFilmPoster(actor: Actor, filmId: number, url: string) {
   await loadManageableFilm(actor, filmId);
-  const imported = await importPosterFromUrl(url);
+  const imported = await importImage(url);
   await db.update(films).set({ posterUrl: imported.url }).where(eq(films.id, filmId));
   publishLiveEvent({ topic: "film", filmId });
   return {
@@ -510,7 +536,7 @@ export async function addFilmTicket(
   if (label.length > 80) throw new ServiceError("Ticket label may be at most 80 characters", 400);
   const rawUrl = normalise(input.imageUrl);
   if (!rawUrl) throw new ServiceError("imageUrl is required", 400);
-  const imported = await importPosterFromUrl(rawUrl);
+  const imported = await importImage(rawUrl);
   const scanned = imported.body ? await decodeQrPayload(imported.body) : null;
   const supplied = normalise(input.qrPayload);
   if (supplied && supplied.length > 2048) {
