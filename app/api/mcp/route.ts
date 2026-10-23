@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getApiKeyActor, type Actor } from "@/lib/authz";
 import { ServiceError } from "@/lib/films";
 import { findTool, toolsFor } from "@/lib/mcp/tools";
+import { readCappedBody } from "@/lib/body-limit";
 
 /**
  * Model Context Protocol server (Streamable HTTP, stateless).
@@ -21,6 +22,8 @@ const SERVER_VERSION = "1.0.0";
 // Newest first. We answer with the client's version when we know it.
 const SUPPORTED_PROTOCOL_VERSIONS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const DEFAULT_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
+const MAX_MCP_BODY = 1024 * 1024;
+const MAX_BATCH = 50;
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -214,9 +217,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Tool arguments are small (URLs, ids, short text); images are fetched by
+  // URL, never sent inline. Cap the JSON so one request can't exhaust memory.
+  const raw = await readCappedBody(req, MAX_MCP_BODY);
+  if (!raw) {
+    return json(rpcError(null, ERROR_CODES.invalidRequest, "Request body is too large"), {
+      status: 413,
+    });
+  }
   let body: unknown;
   try {
-    body = await req.json();
+    body = JSON.parse(new TextDecoder().decode(raw));
   } catch {
     return json(rpcError(null, ERROR_CODES.parse, "Request body is not valid JSON"), {
       status: 400,
@@ -230,6 +241,12 @@ export async function POST(req: NextRequest) {
 
   if (messages.length === 0) {
     return json(rpcError(null, ERROR_CODES.invalidRequest, "Empty batch"), { status: 400 });
+  }
+  if (messages.length > MAX_BATCH) {
+    return json(
+      rpcError(null, ERROR_CODES.invalidRequest, `A batch may hold at most ${MAX_BATCH} messages`),
+      { status: 400 }
+    );
   }
 
   const responses = [];

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionActor } from "@/lib/authz";
 import { BUCKET_NAME } from "@/lib/s3";
+import { readCappedBody } from "@/lib/body-limit";
 import {
   ALLOWED_UPLOAD_TYPES,
   MAX_POSTER_BYTES,
@@ -17,7 +18,21 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const formData = await req.formData();
+  // formData() buffers the whole body before the size check below, so cap
+  // the raw multipart body first (poster limit + room for the form fields).
+  const raw = await readCappedBody(req, MAX_POSTER_BYTES + 64 * 1024);
+  if (!raw) {
+    return new NextResponse(
+      `File too large (max ${Math.round(MAX_POSTER_BYTES / 1024 / 1024)}MB)`,
+      { status: 413 }
+    );
+  }
+  let formData: FormData;
+  try {
+    formData = await new Request(req.url, { method: "POST", headers: req.headers, body: raw }).formData();
+  } catch {
+    return new NextResponse("Invalid form data", { status: 400 });
+  }
   const file = formData.get("file");
 
   if (!file || !(file instanceof File)) {
