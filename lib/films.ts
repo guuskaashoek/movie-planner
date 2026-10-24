@@ -64,6 +64,18 @@ function assertTicketsUrl(value: string | null | undefined) {
   }
 }
 
+/** Film text is shown on every board, feed and public invite page, so keep it bounded. */
+const MAX_LENGTH = { title: 200, description: 5000, formats: 200, ticketsUrl: 2048 } as const;
+
+function assertLengths(input: Partial<Record<keyof typeof MAX_LENGTH, unknown>>) {
+  for (const [field, max] of Object.entries(MAX_LENGTH)) {
+    const value = input[field as keyof typeof MAX_LENGTH];
+    if (typeof value === "string" && value.trim().length > max) {
+      throw new ServiceError(`${field} may be at most ${max} characters`, 400);
+    }
+  }
+}
+
 function today(): string {
   return new Date().toISOString().split("T")[0];
 }
@@ -383,6 +395,7 @@ export async function createFilm(actor: Actor, input: CreateFilmInput) {
   assertTime(input.endTime, "endTime");
   assertTime(input.ticketsOnSaleTime, "ticketsOnSaleTime");
   assertTicketsUrl(input.ticketsUrl);
+  assertLengths(input);
   if (input.isMajorRelease !== undefined && typeof input.isMajorRelease !== "boolean") {
     throw new ServiceError("isMajorRelease must be a boolean", 400);
   }
@@ -465,6 +478,7 @@ export async function updateFilm(actor: Actor, filmId: number, patch: UpdateFilm
   assertTime(patch.endTime, "endTime");
   assertTime(patch.ticketsOnSaleTime, "ticketsOnSaleTime");
   assertTicketsUrl(patch.ticketsUrl);
+  assertLengths(patch);
 
   const update: Record<string, unknown> = {};
   if (patch.isMajorRelease !== undefined) {
