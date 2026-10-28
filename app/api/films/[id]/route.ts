@@ -71,6 +71,10 @@ async function applyUpdate(req: NextRequest, params: RouteParams["params"]) {
       "ticketsOnSaleTime",
       "ticketsUrl",
       "allowMultiVote",
+      "postCreditStatus",
+      "midCreditCount",
+      "endCreditCount",
+      "postCreditNote",
     ]) {
       if (Object.prototype.hasOwnProperty.call(json, key)) patch[key] = json[key];
     }

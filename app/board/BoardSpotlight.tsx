@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FilmQuickActions } from "@/app/components/FilmQuickActions";
+import { PostCreditBadge } from "@/app/components/PostCreditBadge";
 import { PersonAvatars } from "@/app/components/PersonAvatars";
 import { discoverFilms, goingTo, ticketState } from "@/lib/board-discovery";
 import type { Film } from "./BoardClient";
@@ -64,6 +65,9 @@ export function BoardSpotlight({
         <div className="feature-body">
           <h1 id="featured-title">{featured.title}</h1>
           <p className="feature-line">{metaLine(featured)}</p>
+          <div className="mt-3">
+            <PostCreditBadge film={featured} />
+          </div>
           {(crowd.length > 0 || featured.interestedUsers.length > 0) && (
             <div className="feature-crowd">
               <PersonAvatars people={crowd} tone="on-media" caption={`${crowd.length} going`} />
@@ -147,6 +151,9 @@ export function BoardSpotlight({
                     ? `${day(film.date)}${film.startTime ? ` · ${film.startTime}` : ""}`
                     : "Pick a date"}
                 </p>
+                <p>
+                  <PostCreditBadge film={film} />
+                </p>
                 <PersonAvatars people={goingTo(film)} size="xs" max={4} className="mt-1.5" />
               </Link>
             ))}
@@ -181,6 +188,9 @@ export function BoardSpotlight({
                     </strong>
                     <h3>{film.title}</h3>
                     <span>{state === "open" ? "Sales started" : "On sale"}</span>
+                    <p>
+                      <PostCreditBadge film={film} />
+                    </p>
                   </div>
                 </Link>
               );

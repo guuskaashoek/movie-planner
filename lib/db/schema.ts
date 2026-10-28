@@ -57,6 +57,13 @@ export const films = sqliteTable("films", {
   allowMultiVote: integer("allow_multi_vote", { mode: "boolean" })
     .notNull()
     .default(false),
+  // 'unknown' until someone checks, 'none' when there is no tag, 'yes' when
+  // there is at least one. Existing rows default to unknown. Counts only
+  // apply when the status is 'yes'.
+  postCreditStatus: text("post_credit_status").notNull().default("unknown"),
+  midCreditCount: integer("mid_credit_count"),
+  endCreditCount: integer("end_credit_count"),
+  postCreditNote: text("post_credit_note"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .default(sql`(strftime('%s','now') * 1000)`),

@@ -163,7 +163,8 @@ async function dispatch(actor: Actor, message: JsonRpcRequest, negotiated: { ver
         instructions:
           "Manage a shared film calendar: create films, set posters from an image URL, attach Pathé ticket photos so the server can read the QR payload and draw a fresh scannable code, run date polls, mark attendance, comment and rate. " +
           "Call whoami first to see whether this account has admin rights - admins can edit, move and delete every user's films and act on behalf of other users with the asUser argument. " +
-          "Film ids come from list_films or get_film. Dates are YYYY-MM-DD and times are 24h HH:mm.",
+          "Film ids come from list_films or get_film. Dates are YYYY-MM-DD and times are 24h HH:mm. " +
+          "Each film has postCreditStatus (unknown, none, or yes), plus optional midCreditCount, endCreditCount and postCreditNote. Use update_film to record them; an empty string or unknown resets the status.",
       });
     }
 

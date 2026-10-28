@@ -4,8 +4,22 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday, addMonths, subMonths } from "date-fns";
 import classNames from "classnames";
+import { PostCreditBadge } from "@/app/components/PostCreditBadge";
+import { POST_CREDIT_NOTE_MAX, type PostCreditStatus } from "@/lib/post-credits";
 
 const FORMAT_OPTIONS = ["IMAX", "4DX", "ScreenX", "3D", "2D", "Dolby Cinema", "Laser Ultra"];
+
+const POST_CREDIT_CHOICES: { value: PostCreditStatus; label: string }[] = [
+  { value: "unknown", label: "Unknown" },
+  { value: "none", label: "None" },
+  { value: "yes", label: "Yes" },
+];
+
+function formCreditCount(value: string): number | null {
+  if (value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? parsed : null;
+}
 
 type Attendee = {
   id: number;
@@ -26,6 +40,10 @@ type FilmUpdateBody = {
   ticketsOnSaleTime?: string | null;
   ticketsUrl?: string | null;
   posterUrl?: string | null;
+  postCreditStatus?: string | null;
+  midCreditCount?: number | null;
+  endCreditCount?: number | null;
+  postCreditNote?: string | null;
 };
 
 type Film = {
@@ -41,6 +59,10 @@ type Film = {
   ticketsOnSaleDate: string | null;
   ticketsOnSaleTime: string | null;
   ticketsUrl: string | null;
+  postCreditStatus: string;
+  midCreditCount: number | null;
+  endCreditCount: number | null;
+  postCreditNote: string | null;
   createdBy: number;
   creator?: { name: string | null; email: string; image: string | null } | null;
   attendees: Attendee[];
@@ -360,13 +382,12 @@ function FilmRow({
               </p>
             )}
           </div>
-          {film.formats && (
-            <div className="mt-2 flex flex-wrap gap-1">
-              {film.formats.split(",").map(f => (
-                <span key={f} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 uppercase tracking-wide border border-zinc-700/50">{f}</span>
-              ))}
-            </div>
-          )}
+          <div className="mt-2 flex flex-wrap items-center gap-1">
+            {film.formats && film.formats.split(",").map(f => (
+              <span key={f} className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 uppercase tracking-wide border border-zinc-700/50">{f}</span>
+            ))}
+            <PostCreditBadge film={film} />
+          </div>
         </div>
 
         <div className="flex gap-4">
@@ -396,6 +417,8 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
   const [showPastManaged, setShowPastManaged] = useState(false);
 
   useEffect(() => {
+    // Keep the list in step with a server refresh. Same pattern as the board.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilms(initial.films);
   }, [initial.films]);
 
@@ -413,6 +436,10 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     ticketsOnSaleDate: string;
     ticketsOnSaleTime: string;
     ticketsUrl: string;
+    postCreditStatus: PostCreditStatus;
+    midCreditCount: string;
+    endCreditCount: string;
+    postCreditNote: string;
     pollEnabled: boolean;
     allowMultiVote: boolean;
     pollOptions: PollDraft[];
@@ -430,6 +457,10 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     ticketsOnSaleDate: "",
     ticketsOnSaleTime: "",
     ticketsUrl: "",
+    postCreditStatus: "unknown",
+    midCreditCount: "",
+    endCreditCount: "",
+    postCreditNote: "",
     pollEnabled: false,
     allowMultiVote: false,
     pollOptions: [],
@@ -594,6 +625,18 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           body.ticketsUrl = form.ticketsUrl.trim() || null;
         }
 
+        if (
+          isModified("postCreditStatus") ||
+          isModified("midCreditCount") ||
+          isModified("endCreditCount") ||
+          isModified("postCreditNote")
+        ) {
+          body.postCreditStatus = form.postCreditStatus;
+          body.midCreditCount = form.postCreditStatus === "yes" ? formCreditCount(form.midCreditCount) : null;
+          body.endCreditCount = form.postCreditStatus === "yes" ? formCreditCount(form.endCreditCount) : null;
+          body.postCreditNote = form.postCreditNote.trim() || null;
+        }
+
         if (posterChanged) {
           body.posterUrl = posterUrl ?? null;
         }
@@ -604,7 +647,7 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
           });
-          if (!res.ok) throw new Error("Update failed");
+          if (!res.ok) throw new Error((await res.text()) || "Update failed");
         }
         filmId = isEditing;
       } else {
@@ -622,6 +665,10 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
             ? form.ticketsOnSaleTime || null
             : null,
           ticketsUrl: form.ticketsUrl.trim() || null,
+          postCreditStatus: form.postCreditStatus,
+          midCreditCount: form.postCreditStatus === "yes" ? formCreditCount(form.midCreditCount) : null,
+          endCreditCount: form.postCreditStatus === "yes" ? formCreditCount(form.endCreditCount) : null,
+          postCreditNote: form.postCreditNote.trim() || null,
         };
 
         const res = await fetch("/api/films", {
@@ -629,7 +676,7 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (!res.ok) throw new Error("Create failed");
+        if (!res.ok) throw new Error((await res.text()) || "Create failed");
         const created = (await res.json()) as { film: { id: number } };
         filmId = created.film.id;
       }
@@ -658,7 +705,7 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
       resetForm();
     } catch (err) {
       console.error(err);
-      alert("Something went wrong. Please try again.");
+      alert(err instanceof Error && err.message ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -693,6 +740,10 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
       ticketsOnSaleDate: film.ticketsOnSaleDate || "",
       ticketsOnSaleTime: film.ticketsOnSaleTime || "",
       ticketsUrl: film.ticketsUrl || "",
+      postCreditStatus: film.postCreditStatus === "yes" || film.postCreditStatus === "none" ? film.postCreditStatus : "unknown",
+      midCreditCount: film.midCreditCount == null ? "" : String(film.midCreditCount),
+      endCreditCount: film.endCreditCount == null ? "" : String(film.endCreditCount),
+      postCreditNote: film.postCreditNote || "",
       pollEnabled: draftOptions.length > 0,
       allowMultiVote: film.allowMultiVote,
       pollOptions: draftOptions,
@@ -718,6 +769,8 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
     const film = films.find((f) => f.id === requested);
     if (!film) return;
     openedFromUrl.current = true;
+    // Open the editor from ?edit= once. The setter lives in handleEdit.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     handleEdit(film);
     window.history.replaceState(null, "", "/my-films");
     // handleEdit is stable for the lifetime of this component.
@@ -779,6 +832,102 @@ export function MyFilmsClient({ initial }: { initial: InitialData }) {
                 );
               })}
             </div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-zinc-200">Post-credit scenes</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Unknown until someone checks. None means there is no scene during or after the credits.
+                </p>
+              </div>
+              {isEditing && (isModified("postCreditStatus") || isModified("midCreditCount") || isModified("endCreditCount") || isModified("postCreditNote")) && (
+                <span className="text-xs text-amber-500">Modified</span>
+              )}
+            </div>
+            <div className="mt-4 flex gap-2" role="group" aria-label="Post-credit scenes">
+              {POST_CREDIT_CHOICES.map((choice) => (
+                <button
+                  key={choice.value}
+                  type="button"
+                  aria-pressed={form.postCreditStatus === choice.value}
+                  onClick={() =>
+                    setForm((prev) => ({
+                      ...prev,
+                      postCreditStatus: choice.value,
+                      ...(choice.value === "yes" ? {} : { midCreditCount: "", endCreditCount: "" }),
+                    }))
+                  }
+                  className={classNames(
+                    "flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-all",
+                    form.postCreditStatus === choice.value
+                      ? "border-blue-500 bg-blue-600/15 text-blue-300"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-500"
+                  )}
+                >
+                  {choice.label}
+                </button>
+              ))}
+            </div>
+            {form.postCreditStatus === "yes" && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Mid-credit <span className="text-zinc-600">(optional)</span>
+                  </span>
+                  <input
+                    inputMode="numeric"
+                    value={form.midCreditCount}
+                    onChange={(e) =>
+                      setForm({ ...form, midCreditCount: e.target.value.replace(/\D/g, "").slice(0, 2) })
+                    }
+                    placeholder="0"
+                    aria-label="Number of mid-credit scenes"
+                    className={getFieldClass(
+                      "midCreditCount",
+                      "w-full rounded-lg border border-zinc-800 bg-black px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                    )}
+                  />
+                  <span className="mt-1 block text-[10px] text-zinc-500">During the credits</span>
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    End-credit <span className="text-zinc-600">(optional)</span>
+                  </span>
+                  <input
+                    inputMode="numeric"
+                    value={form.endCreditCount}
+                    onChange={(e) =>
+                      setForm({ ...form, endCreditCount: e.target.value.replace(/\D/g, "").slice(0, 2) })
+                    }
+                    placeholder="0"
+                    aria-label="Number of end-credit scenes"
+                    className={getFieldClass(
+                      "endCreditCount",
+                      "w-full rounded-lg border border-zinc-800 bg-black px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                    )}
+                  />
+                  <span className="mt-1 block text-[10px] text-zinc-500">After the credits</span>
+                </label>
+              </div>
+            )}
+            <label className="mt-4 block">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Note <span className="text-zinc-600">(optional)</span>
+              </span>
+              <textarea
+                value={form.postCreditNote}
+                maxLength={POST_CREDIT_NOTE_MAX}
+                rows={2}
+                onChange={(e) => setForm({ ...form, postCreditNote: e.target.value })}
+                placeholder="e.g. short joke after the credits"
+                className={getFieldClass(
+                  "postCreditNote",
+                  "w-full resize-y rounded-lg border border-zinc-800 bg-black px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
+                )}
+              />
+            </label>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2">

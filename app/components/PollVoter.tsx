@@ -52,6 +52,8 @@ export function PollVoter({
   const [pendingId, setPendingId] = useState<number | null>(null);
 
   useEffect(() => {
+    // Keep the poll in step with a server refresh. Same pattern as the board.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPoll(initialPoll);
   }, [initialPoll]);
 

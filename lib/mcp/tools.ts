@@ -163,6 +163,46 @@ const ticketsProps = {
   },
 };
 
+const postCreditProps = {
+  postCreditStatus: {
+    type: "string",
+    description:
+      'Whether this film has scenes during or after the credits. One of "unknown" (not checked yet; the default), "none" (no mid- or end-credit scene), or "yes" (at least one). Send an empty string or "unknown" to reset. Any status other than yes clears midCreditCount and endCreditCount.',
+  },
+  midCreditCount: {
+    type: "integer",
+    description:
+      'Number of mid-credit scenes (during the credits). Whole number from 0 to 20, and only stored when postCreditStatus is "yes". Omit to leave unchanged on update. Send null, an empty string, or "unknown" to clear.',
+  },
+  endCreditCount: {
+    type: "integer",
+    description:
+      'Number of end-credit scenes (after the credits finish). Whole number from 0 to 20, and only stored when postCreditStatus is "yes". Omit to leave unchanged on update. Send null, an empty string, or "unknown" to clear.',
+  },
+  postCreditNote: {
+    type: "string",
+    description:
+      'Short note about the post-credit scenes, for example "na de aftiteling kort grapje". At most 280 characters. Send an empty string or "unknown" to clear.',
+  },
+};
+
+/** Count fields accept a number, or null / "" / "unknown" to clear. */
+function creditCount(args: Record<string, unknown>, key: string): number | string | null | undefined {
+  if (!has(args, key)) return undefined;
+  const value = args[key];
+  if (value == null || value === "") return null;
+  if (typeof value === "number" || typeof value === "string") return value;
+  throw new ServiceError(`${key} must be a whole number, or empty to clear`, 400);
+}
+
+function creditStatus(args: Record<string, unknown>, key: string): string | undefined {
+  if (!has(args, key)) return undefined;
+  const value = args[key];
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  throw new ServiceError(`${key} must be a string`, 400);
+}
+
 const spotlightProps = {
   isMajorRelease: { type: "boolean", description: "Mark a major release to prioritize it in the homepage spotlight. Set false to remove the priority. Past screenings are never featured." },
   backdropUrl: { type: "string", description: "Wide cinematic still for the homepage hero (ideally 16:9). Downloaded and re-hosted like posters. Empty string clears it; the hero falls back to the poster." },
@@ -208,7 +248,7 @@ export const TOOLS: ToolDefinition[] = [
     name: "list_films",
     title: "List films",
     description:
-      "List films on the shared board with their dates, posters, attendees, polls and ratings. Use the query argument to search by title.",
+      "List films on the shared board with their dates, posters, attendees, polls, ratings and post-credit scenes (postCreditStatus, midCreditCount, endCreditCount, postCreditNote). Use the query argument to search by title.",
     readOnly: true,
     inputSchema: {
       type: "object",
@@ -242,7 +282,7 @@ export const TOOLS: ToolDefinition[] = [
     name: "get_film",
     title: "Get film",
     description:
-      "Full detail for one film: description, schedule, poster, poll results, attendees, ratings and comments.",
+      "Full detail for one film: description, schedule, poster, post-credit scenes (postCreditStatus, midCreditCount, endCreditCount, postCreditNote), poll results, attendees, ratings and comments.",
     readOnly: true,
     inputSchema: {
       type: "object",
@@ -256,7 +296,7 @@ export const TOOLS: ToolDefinition[] = [
     name: "create_film",
     title: "Create film",
     description:
-      "Add a film to the board. Pass posterUrl with any public image link (JPEG, PNG, WebP or AVIF) and the server downloads it and re-hosts it, so the poster keeps working. Add pollOptions instead of a fixed date to let people vote on a screening slot, and ticketsOnSaleDate/ticketsOnSaleTime to record when tickets are released.",
+      "Add a film to the board. Pass posterUrl with any public image link (JPEG, PNG, WebP or AVIF) and the server downloads it and re-hosts it, so the poster keeps working. Add pollOptions instead of a fixed date to let people vote on a screening slot, and ticketsOnSaleDate/ticketsOnSaleTime to record when tickets are released. Set postCreditStatus to unknown, none, or yes, with optional midCreditCount, endCreditCount and postCreditNote.",
     inputSchema: {
       type: "object",
       properties: {
@@ -281,6 +321,7 @@ export const TOOLS: ToolDefinition[] = [
           type: "boolean",
           description: "Let each voter pick more than one poll option.",
         },
+        ...postCreditProps,
         pollOptions: pollOptionsProp,
         owner: {
           type: "string",
@@ -307,6 +348,10 @@ export const TOOLS: ToolDefinition[] = [
         backdropUrl: str(args, "backdropUrl") ?? null,
         isMajorRelease: bool(args, "isMajorRelease") ?? false,
         allowMultiVote: bool(args, "allowMultiVote") ?? false,
+        postCreditStatus: creditStatus(args, "postCreditStatus"),
+        midCreditCount: creditCount(args, "midCreditCount"),
+        endCreditCount: creditCount(args, "endCreditCount"),
+        postCreditNote: has(args, "postCreditNote") ? (str(args, "postCreditNote") ?? "") : undefined,
         pollOptions: pollOptionsArg(args, "pollOptions"),
         ownerRef: str(args, "owner") ?? null,
       }),
@@ -315,7 +360,7 @@ export const TOOLS: ToolDefinition[] = [
     name: "update_film",
     title: "Update film",
     description:
-      "Change fields of an existing film. Only the fields you send are touched; send an empty string to clear an optional field. Admins can update any film, everyone else only their own.",
+      "Change fields of an existing film. Only the fields you send are touched; send an empty string to clear an optional field. postCreditStatus accepts unknown, none, or yes; an empty string or unknown resets it and clears the scene counts. Admins can update any film, everyone else only their own.",
     inputSchema: {
       type: "object",
       properties: {
@@ -335,6 +380,7 @@ export const TOOLS: ToolDefinition[] = [
             "New poster image link; it is downloaded and re-hosted. Empty string removes the poster.",
         },
         allowMultiVote: { type: "boolean" },
+        ...postCreditProps,
       },
       required: ["filmId"],
       additionalProperties: false,
@@ -359,6 +405,10 @@ export const TOOLS: ToolDefinition[] = [
       }
       if (has(args, "isMajorRelease")) patch.isMajorRelease = bool(args, "isMajorRelease");
       if (has(args, "allowMultiVote")) patch.allowMultiVote = bool(args, "allowMultiVote");
+      if (has(args, "postCreditStatus")) patch.postCreditStatus = creditStatus(args, "postCreditStatus");
+      if (has(args, "midCreditCount")) patch.midCreditCount = creditCount(args, "midCreditCount");
+      if (has(args, "endCreditCount")) patch.endCreditCount = creditCount(args, "endCreditCount");
+      if (has(args, "postCreditNote")) patch.postCreditNote = str(args, "postCreditNote") ?? "";
       return updateFilm(actor, reqNum(args, "filmId"), patch);
     },
   },

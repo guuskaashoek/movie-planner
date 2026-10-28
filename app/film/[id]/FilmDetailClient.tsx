@@ -7,6 +7,7 @@ import { PollVoter, type Poll } from "@/app/components/PollVoter";
 import { CommentsSection, type FilmComment } from "@/app/components/CommentsSection";
 import { useLiveUpdates } from "@/app/components/useLiveUpdates";
 import { CinemaTicket } from "@/app/tickets/CinemaTicket";
+import { PostCreditBadge } from "@/app/components/PostCreditBadge";
 
 type Attendee = {
   id: number;
@@ -27,6 +28,10 @@ export type FilmDetail = {
   ticketsOnSaleDate: string | null;
   ticketsOnSaleTime: string | null;
   ticketsUrl: string | null;
+  postCreditStatus: string | null;
+  midCreditCount: number | null;
+  endCreditCount: number | null;
+  postCreditNote: string | null;
   posterUrl: string | null;
   inviteToken: string | null;
   creator: { name: string | null; email: string; image: string | null } | null;
@@ -89,6 +94,8 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
   const liveRefreshTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    // Keep attendance and ratings in step with a server refresh.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setGoingUsers(initial.goingUsers);
     setInterestedUsers(initial.interestedUsers);
     setIsGoing(initial.isGoing);
@@ -213,6 +220,13 @@ export function FilmDetailClient({ initial }: { initial: FilmDetailInitial }) {
               )}
               {film.releaseDate && (
                 <span className="text-zinc-500">Released {formatLongDate(film.releaseDate)}</span>
+              )}
+            </div>
+
+            <div className="flex flex-col items-start gap-1">
+              <PostCreditBadge film={film} />
+              {film.postCreditNote && (
+                <p className="text-sm text-zinc-400">{film.postCreditNote}</p>
               )}
             </div>
 
