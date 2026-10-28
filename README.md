@@ -15,6 +15,7 @@ It started as a small side project in January 2026 and has grown feature by feat
 - **Ticket wallet** (`/tickets`): ticket photos are added per screening, the QR code is decoded and redrawn as a clean, scannable code, and only members who are going can open them.
 - **Calendar feed**: every member gets a personal `.ics` link that syncs the screenings they attend or voted for to Google Calendar, Apple Calendar and others.
 - **Comments and ratings**: discuss a film and rate it after the screening.
+- **Post-credit scenes**: each film is marked unknown, none, or yes, with optional mid-credit and end-credit counts and a short note. Owners and admins edit it on the film form; the same fields are on the MCP `create_film` and `update_film` tools.
 - **Invite links** with Open Graph previews for WhatsApp and other apps.
 - **Live updates**: changes by other members appear without a reload.
 - **Installable PWA**, including an "Add to Home Screen" hint on iOS Safari.

@@ -57,6 +57,10 @@ export async function POST(req: NextRequest) {
       ticketsOnSaleTime: json.ticketsOnSaleTime ?? null,
       ticketsUrl: json.ticketsUrl ?? null,
       posterUrl: json.posterUrl ?? null,
+      postCreditStatus: json.postCreditStatus,
+      midCreditCount: json.midCreditCount,
+      endCreditCount: json.endCreditCount,
+      postCreditNote: json.postCreditNote,
       allowMultiVote: json.allowMultiVote ?? false,
     });
 

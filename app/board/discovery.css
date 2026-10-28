@@ -248,6 +248,21 @@
   font-size: 12px;
 }
 
+.sale-copy .post-credit-badge[data-tone="yes"] {
+  color: #ecfccb;
+  font-size: 10px;
+}
+
+.sale-copy .post-credit-badge[data-tone="none"] {
+  color: #a1a1aa;
+  font-size: 10px;
+}
+
+.sale-copy .post-credit-badge[data-tone="unknown"] {
+  color: #71717a;
+  font-size: 10px;
+}
+
 .discovery a:focus-visible,
 .discovery button:focus-visible {
   outline: 2px solid var(--cinema-accent);

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { FilmQuickActions } from "@/app/components/FilmQuickActions";
+import { PostCreditBadge } from "@/app/components/PostCreditBadge";
 import { PersonAvatars } from "@/app/components/PersonAvatars";
 import { goingTo } from "@/lib/board-discovery";
 import { BoardSpotlight } from "./BoardSpotlight";
@@ -32,6 +33,10 @@ export type Film = {
   ticketsOnSaleDate: string | null;
   ticketsOnSaleTime: string | null;
   ticketsUrl: string | null;
+  postCreditStatus?: string | null;
+  midCreditCount?: number | null;
+  endCreditCount?: number | null;
+  postCreditNote?: string | null;
   admissionTicketCount?: number;
   inviteToken: string | null;
   goingUsers: Attendee[];
@@ -293,6 +298,7 @@ export function BoardClient({ initial, preview = false }: { initial: ApiResponse
               {film.date ? new Date(film.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : film.releaseDate ? `Releases ${new Date(film.releaseDate).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : "Date to be announced"}
               {film.date && film.startTime && ` · ${film.startTime}`}
             </p>
+            <p className="mt-1"><PostCreditBadge film={film} /></p>
             {(film.admissionTicketCount ?? 0) > 0 && <p className="mt-1 text-xs font-medium text-lime-200">We have tickets</p>}
             {film.poll && <p className="mt-1 text-xs text-amber-300">Vote on a date →</p>}
           </Link>
@@ -400,6 +406,7 @@ export function BoardClient({ initial, preview = false }: { initial: ApiResponse
                             {film.ticketsOnSaleTime && ` · ${film.ticketsOnSaleTime}`}
                           </span>
                         )}
+                        <PostCreditBadge film={film} />
                         {(film.admissionTicketCount ?? 0) > 0 && (
                           <span className="text-xs font-medium text-lime-200">We have tickets</span>
                         )}

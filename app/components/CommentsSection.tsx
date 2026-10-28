@@ -58,6 +58,8 @@ export function CommentsSection({
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
+    // Keep the list in step with a server refresh. Same pattern as the board.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setComments(initialComments);
   }, [initialComments]);
 

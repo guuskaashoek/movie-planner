@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { BoardClient } from "@/app/board/BoardClient";
+import { PostCreditBadge } from "@/app/components/PostCreditBadge";
 import { previewFilms } from "./fixtures";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +29,10 @@ export default async function PreviewPage({ searchParams }: { searchParams: Prom
             <p className="mt-5 text-sm">
               {film.date} · {film.startTime} · {film.formats}
             </p>
+            <div className="mt-3 flex flex-col items-start gap-1">
+              <PostCreditBadge film={film} />
+              {film.postCreditNote && <p className="text-sm text-zinc-400">{film.postCreditNote}</p>}
+            </div>
             <p className="mt-2 text-sm text-zinc-500">{film.goingUsers.length} people going</p>
             {film.ticketsOnSaleDate && (
               <p className="mt-5 text-sm text-lime-200">

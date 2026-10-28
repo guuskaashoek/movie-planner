@@ -21,6 +21,13 @@ import { publishLiveEvent } from "@/lib/live";
 import { buildTicketWallet, mayViewAdmissionTickets, ticketWindowOpen } from "@/lib/ticket-access";
 import { decodeQrPayload, qrSvg } from "@/lib/ticket-qr";
 import { type Actor, canManageFilm, canManageComment, resolveRole } from "@/lib/authz";
+import {
+  DEFAULT_POST_CREDIT,
+  PostCreditError,
+  applyPostCreditPatch,
+  type PostCreditPatch,
+  type PostCreditRecord,
+} from "@/lib/post-credits";
 
 /**
  * Everything in this module is written against an Actor rather than a session,
@@ -249,6 +256,10 @@ async function buildFilmView(
     posterUrl,
     backdropUrl: await signPosterUrl(film.backdropUrl),
     isMajorRelease: film.isMajorRelease,
+    postCreditStatus: storedPostCredit(film).postCreditStatus,
+    midCreditCount: film.midCreditCount,
+    endCreditCount: film.endCreditCount,
+    postCreditNote: film.postCreditNote,
     posterStoredUrl: film.posterUrl,
     inviteToken: film.inviteToken,
     allowMultiVote: film.allowMultiVote,
@@ -372,6 +383,14 @@ export type CreateFilmInput = {
   backdropUrl?: string | null;
   /** Prioritize this film in the home spotlight while it is upcoming. */
   isMajorRelease?: boolean;
+  /** "unknown" (default), "none", or "yes". Empty or "unknown" resets it. */
+  postCreditStatus?: string | null;
+  /** Mid-credit scenes. Only stored when postCreditStatus is "yes". */
+  midCreditCount?: number | string | null;
+  /** End-credit scenes. Only stored when postCreditStatus is "yes". */
+  endCreditCount?: number | string | null;
+  /** Short free-text note. Empty string clears it. */
+  postCreditNote?: string | null;
   allowMultiVote?: boolean;
   pollOptions?: PollOptionInput[];
   /** Admin only: create the film on behalf of another user (id or email). */
@@ -382,6 +401,41 @@ function normalise(value: string | null | undefined): string | null {
   if (value == null) return null;
   const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
+}
+
+function storedPostCredit(film: {
+  postCreditStatus: string;
+  midCreditCount: number | null;
+  endCreditCount: number | null;
+  postCreditNote: string | null;
+}): PostCreditRecord {
+  return {
+    postCreditStatus:
+      film.postCreditStatus === "yes" || film.postCreditStatus === "none"
+        ? film.postCreditStatus
+        : "unknown",
+    midCreditCount: film.midCreditCount,
+    endCreditCount: film.endCreditCount,
+    postCreditNote: film.postCreditNote,
+  };
+}
+
+function hasPostCreditPatch(patch: PostCreditPatch): boolean {
+  return (
+    patch.postCreditStatus !== undefined ||
+    patch.midCreditCount !== undefined ||
+    patch.endCreditCount !== undefined ||
+    patch.postCreditNote !== undefined
+  );
+}
+
+function readPostCredit(current: PostCreditRecord, patch: PostCreditPatch): PostCreditRecord {
+  try {
+    return applyPostCreditPatch(current, patch);
+  } catch (err) {
+    if (err instanceof PostCreditError) throw new ServiceError(err.message, 400);
+    throw err;
+  }
 }
 
 export async function createFilm(actor: Actor, input: CreateFilmInput) {
@@ -399,6 +453,7 @@ export async function createFilm(actor: Actor, input: CreateFilmInput) {
   if (input.isMajorRelease !== undefined && typeof input.isMajorRelease !== "boolean") {
     throw new ServiceError("isMajorRelease must be a boolean", 400);
   }
+  const credits = readPostCredit(DEFAULT_POST_CREDIT, input);
 
   let createdBy = actor.userId;
   if (input.ownerRef != null && input.ownerRef !== "") {
@@ -430,6 +485,10 @@ export async function createFilm(actor: Actor, input: CreateFilmInput) {
       posterUrl,
       backdropUrl,
       isMajorRelease: input.isMajorRelease ?? false,
+      postCreditStatus: credits.postCreditStatus,
+      midCreditCount: credits.midCreditCount,
+      endCreditCount: credits.endCreditCount,
+      postCreditNote: credits.postCreditNote,
       allowMultiVote: input.allowMultiVote ?? false,
       createdBy,
       inviteToken: randomBytes(16).toString("hex"),
@@ -464,12 +523,16 @@ export type UpdateFilmInput = Partial<
     | "posterUrl"
     | "backdropUrl"
     | "isMajorRelease"
+    | "postCreditStatus"
+    | "midCreditCount"
+    | "endCreditCount"
+    | "postCreditNote"
     | "allowMultiVote"
   >
 >;
 
 export async function updateFilm(actor: Actor, filmId: number, patch: UpdateFilmInput) {
-  await loadManageableFilm(actor, filmId);
+  const existing = await loadManageableFilm(actor, filmId);
 
   assertDate(patch.date, "date");
   assertDate(patch.releaseDate, "releaseDate");
@@ -509,6 +572,13 @@ export async function updateFilm(actor: Actor, filmId: number, patch: UpdateFilm
   }
   if (patch.ticketsUrl !== undefined) update.ticketsUrl = normalise(patch.ticketsUrl);
   if (patch.allowMultiVote !== undefined) update.allowMultiVote = patch.allowMultiVote;
+  if (hasPostCreditPatch(patch)) {
+    const credits = readPostCredit(storedPostCredit(existing), patch);
+    update.postCreditStatus = credits.postCreditStatus;
+    update.midCreditCount = credits.midCreditCount;
+    update.endCreditCount = credits.endCreditCount;
+    update.postCreditNote = credits.postCreditNote;
+  }
 
   if (patch.posterUrl !== undefined) {
     const raw = normalise(patch.posterUrl);
