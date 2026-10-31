@@ -78,6 +78,7 @@ function isPrivateIPv4(ip: string): boolean {
   if (a === 192 && b === 168) return true; // 192.168.0.0/16
   if (a === 192 && b === 0) return true; // 192.0.0.0/24
   if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
+  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
   if (a >= 224) return true; // multicast + reserved
   return false;
 }
@@ -86,7 +87,8 @@ function isPrivateIPv6(ip: string): boolean {
   const addr = ip.toLowerCase().split("%")[0];
   if (addr === "::" || addr === "::1") return true;
   if (addr.startsWith("fc") || addr.startsWith("fd")) return true; // unique local
-  if (addr.startsWith("fe80")) return true; // link-local
+  if (/^fe[89ab]/.test(addr)) return true; // link-local
+  if (addr.startsWith("ff")) return true; // multicast
   // IPv4-mapped (::ffff:a.b.c.d)
   const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(addr);
   if (mapped) return isPrivateIPv4(mapped[1]);

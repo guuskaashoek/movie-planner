@@ -16,4 +16,4 @@ coverage
 dist
 build
 *.log
-db.sqlite
+db.sqlite*
