@@ -15,6 +15,7 @@ import { randomBytes } from "crypto";
 import { signPosterUrl } from "@/lib/s3";
 import { importPosterFromUrl } from "@/lib/images";
 import { storageKey } from "@/lib/storage-url";
+import { isCalendarDate } from "@/lib/dates";
 import { getPollData } from "@/lib/poll";
 import { getComments } from "@/lib/comments";
 import { publishLiveEvent } from "@/lib/live";
@@ -42,11 +43,10 @@ export class ServiceError extends Error {
   }
 }
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 function assertDate(value: string | null | undefined, field: string) {
-  if (value != null && value !== "" && !DATE_RE.test(value)) {
+  if (value != null && value !== "" && !isCalendarDate(value)) {
     throw new ServiceError(`${field} must be formatted as YYYY-MM-DD`, 400);
   }
 }
@@ -782,7 +782,7 @@ async function writePollOptions(
     throw new ServiceError("A poll can hold at most 20 options", 400);
   }
   for (const opt of options) {
-    if (!opt.date || !DATE_RE.test(opt.date)) {
+    if (!isCalendarDate(opt.date)) {
       throw new ServiceError("Each poll option needs a date formatted as YYYY-MM-DD", 400);
     }
     assertTime(opt.startTime, "poll option startTime");
