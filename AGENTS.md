@@ -147,7 +147,7 @@ After a mutation, call `publishLiveEvent({ topic, filmId })` from `lib/live.ts` 
 - Importing a poster or backdrop from a URL goes through `importPosterFromUrl` in `lib/images.ts`: http(s) only, private/loopback/link-local addresses refused, every redirect hop re-checked, 10 MB cap, magic-byte check, then re-hosted in our bucket. **Never fetch a user-supplied URL any other way.**
 - Uploads are checked with `sniffImageType` / `ALLOWED_UPLOAD_TYPES`. Don't trust the client's content type.
 - Ticket images are never public. Opening one re-checks access (`mayViewAdmissionTickets`: going, or voted for the winning poll option) and then redirects to a short-lived signed URL. Keep both steps when you touch ticket routes.
-- Show stored images through `signPosterUrl`. `next.config.ts` only allows remote images from `lh3.googleusercontent.com` and `*.wasabisys.com`.
+- Show stored images through `signPosterUrl` and plain `<img>`. The app doesn't use `next/image`; `next.config.ts` sets `images.unoptimized`, so `/_next/image` returns 404. Don't add `remotePatterns` back.
 
 ### Frontend
 

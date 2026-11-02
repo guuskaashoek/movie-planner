@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // The app never uses next/image, so switch the optimizer off: /_next/image
+  // then answers 404 instead of letting anonymous visitors run sharp resizes.
+  images: { unoptimized: true },
   async headers() {
     return [
       {
