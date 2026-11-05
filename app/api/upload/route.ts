@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionActor } from "@/lib/authz";
 import { BUCKET_NAME } from "@/lib/s3";
 import { readCappedBody } from "@/lib/body-limit";
+import { isCrossOriginWrite } from "@/lib/same-origin";
 import {
   ALLOWED_UPLOAD_TYPES,
   MAX_POSTER_BYTES,
@@ -12,6 +13,9 @@ import {
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+  if (isCrossOriginWrite(req)) {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
   // getSessionActor, not auth(): a removed member's JWT stays valid.
   const actor = await getSessionActor();
   if (!actor) {
