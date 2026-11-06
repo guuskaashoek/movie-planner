@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "microphone=(), geolocation=()" },
+          // Base CSP without script-src (Next inlines scripts without a nonce):
+          // no framing, no <base> hijack, no plugins. No form-action: the Google
+          // sign-in form redirects to accounts.google.com, which form-action
+          // would block in Chromium.
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+          },
         ],
       },
     ];
