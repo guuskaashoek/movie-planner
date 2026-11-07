@@ -1,9 +1,8 @@
-import { lookup } from "dns/promises";
-import { isIP } from "net";
 import { randomUUID } from "crypto";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { s3, BUCKET_NAME } from "@/lib/s3";
 import { isStorageUrl } from "@/lib/storage-url";
+import { parsePublicUrl, safeGet, TooLargeError, UnsafeUrlError, type SafeResponse } from "@/lib/safe-fetch";
 
 export const MAX_POSTER_BYTES = 10 * 1024 * 1024;
 
@@ -64,117 +63,6 @@ export function sniffImageType(buf: Buffer): ImageKind | null {
   }
 
   return null;
-}
-
-function isPrivateIPv4(ip: string): boolean {
-  const parts = ip.split(".").map(Number);
-  if (parts.length !== 4 || parts.some((p) => Number.isNaN(p))) return true;
-  const [a, b] = parts;
-  if (a === 10) return true; // 10.0.0.0/8
-  if (a === 127) return true; // loopback
-  if (a === 0) return true; // "this" network
-  if (a === 169 && b === 254) return true; // link-local (incl. cloud metadata)
-  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
-  if (a === 192 && b === 168) return true; // 192.168.0.0/16
-  if (a === 192 && b === 0) return true; // 192.0.0.0/24
-  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT
-  if (a === 198 && (b === 18 || b === 19)) return true; // benchmarking
-  if (a >= 224) return true; // multicast + reserved
-  return false;
-}
-
-function isPrivateIPv6(ip: string): boolean {
-  const addr = ip.toLowerCase().split("%")[0];
-  if (addr === "::" || addr === "::1") return true;
-  if (addr.startsWith("fc") || addr.startsWith("fd")) return true; // unique local
-  if (/^fe[89ab]/.test(addr)) return true; // link-local
-  if (addr.startsWith("ff")) return true; // multicast
-  // IPv4-mapped (::ffff:a.b.c.d)
-  const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(addr);
-  if (mapped) return isPrivateIPv4(mapped[1]);
-  // The URL parser rewrites [::ffff:127.0.0.1] to the hex form [::ffff:7f00:1].
-  const mappedHex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(addr);
-  if (mappedHex) {
-    const hi = parseInt(mappedHex[1], 16);
-    const lo = parseInt(mappedHex[2], 16);
-    return isPrivateIPv4(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
-  }
-  // NAT64 and the deprecated IPv4-compatible form can also reach IPv4 hosts.
-  if (addr.startsWith("64:ff9b:") || /^::[0-9a-f]{1,4}:[0-9a-f]{1,4}$/.test(addr)) return true;
-  return false;
-}
-
-function isPrivateAddress(ip: string): boolean {
-  const version = isIP(ip);
-  if (version === 4) return isPrivateIPv4(ip);
-  if (version === 6) return isPrivateIPv6(ip);
-  return true;
-}
-
-/**
- * Reject anything that is not a public http(s) host. Without this, a model
- * could ask the server to fetch `http://169.254.169.254/...` and hand back
- * cloud credentials as a "poster".
- */
-async function assertPublicUrl(rawUrl: string): Promise<URL> {
-  let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    throw new Error("Poster URL is not a valid URL");
-  }
-
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new Error("Poster URL must use http or https");
-  }
-
-  const host = url.hostname.replace(/^\[|\]$/g, "");
-
-  if (isIP(host)) {
-    if (isPrivateAddress(host)) {
-      throw new Error("Poster URL points at a private address");
-    }
-    return url;
-  }
-
-  let addresses: { address: string }[];
-  try {
-    addresses = await lookup(host, { all: true });
-  } catch {
-    throw new Error(`Could not resolve poster host "${host}"`);
-  }
-
-  if (addresses.length === 0 || addresses.some((a) => isPrivateAddress(a.address))) {
-    throw new Error("Poster URL points at a private address");
-  }
-
-  return url;
-}
-
-/** Read a response body into a Buffer, aborting past the size cap. */
-async function readCapped(res: Response, cap: number): Promise<Buffer> {
-  const declared = Number(res.headers.get("content-length") ?? "0");
-  if (declared && declared > cap) {
-    throw new Error(`Image is larger than ${Math.round(cap / 1024 / 1024)}MB`);
-  }
-
-  const reader = res.body?.getReader();
-  if (!reader) throw new Error("Image response had no body");
-
-  const chunks: Buffer[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > cap) {
-      await reader.cancel();
-      throw new Error(`Image is larger than ${Math.round(cap / 1024 / 1024)}MB`);
-    }
-    chunks.push(Buffer.from(value));
-  }
-
-  return Buffer.concat(chunks);
 }
 
 /** Store bytes in the bucket under a flat `<uuid>.<ext>` key and return its URL. */
@@ -238,17 +126,28 @@ export async function importPosterFromUrl(rawUrl: string): Promise<ImportedPoste
     return { url: canonical, contentType: "image/*", bytes: 0, reused: true };
   }
 
-  let current = await assertPublicUrl(trimmed);
-  let res: Response | null = null;
+  // safeGet checks the address at connect time (no DNS rebinding) and caps the body.
+  const poster = (err: unknown) =>
+    err instanceof UnsafeUrlError
+      ? new Error(
+          err instanceof TooLargeError
+            ? `Image is larger than ${Math.round(MAX_POSTER_BYTES / 1024 / 1024)}MB`
+            : `Poster ${err.message}`
+        )
+      : new Error("Could not download the poster");
+  let current: URL;
+  try {
+    current = parsePublicUrl(trimmed);
+  } catch (err) {
+    throw poster(err);
+  }
+  let res: SafeResponse | null = null;
 
   // Follow redirects by hand so every hop is re-validated against SSRF.
   for (let hop = 0; hop < 4; hop++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
     try {
-      res = await fetch(current, {
-        redirect: "manual",
-        signal: controller.signal,
+      res = await safeGet(current, {
+        cap: MAX_POSTER_BYTES,
         headers: {
           // Some CDNs (TMDB, Wikipedia) refuse requests without these.
           "User-Agent": "MoviePlannerBot/1.0 (+poster-import)",
@@ -256,17 +155,16 @@ export async function importPosterFromUrl(rawUrl: string): Promise<ImportedPoste
         },
       });
     } catch (err) {
-      throw new Error(
-        `Could not download the poster: ${err instanceof Error ? err.message : "request failed"}`
-      );
-    } finally {
-      clearTimeout(timeout);
+      throw poster(err);
     }
 
     if (res.status >= 300 && res.status < 400) {
-      const location = res.headers.get("location");
-      if (!location) throw new Error("Poster URL redirected without a target");
-      current = await assertPublicUrl(new URL(location, current).toString());
+      if (!res.location) throw new Error("Poster URL redirected without a target");
+      try {
+        current = parsePublicUrl(new URL(res.location, current).toString());
+      } catch (err) {
+        throw poster(err);
+      }
       res = null;
       continue;
     }
@@ -274,11 +172,11 @@ export async function importPosterFromUrl(rawUrl: string): Promise<ImportedPoste
   }
 
   if (!res) throw new Error("Poster URL redirected too many times");
-  if (!res.ok) {
-    throw new Error(`Poster URL returned HTTP ${res.status}`);
+  if (res.status < 200 || res.status >= 300 || !res.body) {
+    throw new Error("Could not download the poster");
   }
 
-  const body = await readCapped(res, MAX_POSTER_BYTES);
+  const body = res.body;
   const kind = sniffImageType(body);
   if (!kind) {
     throw new Error(
