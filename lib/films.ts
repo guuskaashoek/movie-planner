@@ -13,7 +13,7 @@ import {
 import { and, eq, gte, inArray, isNull, like, or, sql, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { signPosterUrl } from "@/lib/s3";
-import { importPosterFromUrl } from "@/lib/images";
+import { importPosterFromUrl, PosterImportError } from "@/lib/images";
 import { storageKey } from "@/lib/storage-url";
 import { isCalendarDate } from "@/lib/dates";
 import { getPollData } from "@/lib/poll";
@@ -109,7 +109,14 @@ export function hasFilmEnded(date: string | null, endTime: string | null): boole
  * poster or backdrop is visible to every member anyway and may be reused.
  */
 async function importImage(rawUrl: string) {
-  const imported = await importPosterFromUrl(rawUrl);
+  let imported: Awaited<ReturnType<typeof importPosterFromUrl>>;
+  try {
+    imported = await importPosterFromUrl(rawUrl);
+  } catch (err) {
+    // Only the import's own explanations reach the caller; storage/SDK errors stay in the log.
+    if (err instanceof PosterImportError) throw new ServiceError(err.message, 400);
+    throw err;
+  }
   if (!imported.reused) return imported;
 
   const key = storageKey(imported.url);

@@ -131,7 +131,8 @@ async function handleToolCall(actor: Actor, params: Record<string, unknown>) {
   } catch (err) {
     if (err instanceof ServiceError) return toolFailure(err.message);
     console.error(`[mcp] tool ${name} failed:`, err);
-    return toolFailure(err instanceof Error ? err.message : "Unexpected server error");
+    // Raw messages (SQLite, S3 SDK) can carry internals; they stay in the log.
+    return toolFailure("Unexpected server error");
   }
 }
 
@@ -270,7 +271,7 @@ export async function POST(req: NextRequest) {
         rpcError(
           message.id ?? null,
           ERROR_CODES.internal,
-          err instanceof Error ? err.message : "Internal server error"
+          "Internal server error"
         )
       );
     }

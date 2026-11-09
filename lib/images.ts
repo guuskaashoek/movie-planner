@@ -4,6 +4,9 @@ import { s3, BUCKET_NAME } from "@/lib/s3";
 import { isStorageUrl } from "@/lib/storage-url";
 import { parsePublicUrl, safeGet, TooLargeError, UnsafeUrlError, type SafeResponse } from "@/lib/safe-fetch";
 
+/** A poster import failed for a reason the caller may be told (bad URL, not an image, too large). */
+export class PosterImportError extends Error {}
+
 export const MAX_POSTER_BYTES = 10 * 1024 * 1024;
 
 export type ImageKind = {
@@ -129,12 +132,12 @@ export async function importPosterFromUrl(rawUrl: string): Promise<ImportedPoste
   // safeGet checks the address at connect time (no DNS rebinding) and caps the body.
   const poster = (err: unknown) =>
     err instanceof UnsafeUrlError
-      ? new Error(
+      ? new PosterImportError(
           err instanceof TooLargeError
             ? `Image is larger than ${Math.round(MAX_POSTER_BYTES / 1024 / 1024)}MB`
             : `Poster ${err.message}`
         )
-      : new Error("Could not download the poster");
+      : new PosterImportError("Could not download the poster");
   let current: URL;
   try {
     current = parsePublicUrl(trimmed);
@@ -159,7 +162,7 @@ export async function importPosterFromUrl(rawUrl: string): Promise<ImportedPoste
     }
 
     if (res.status >= 300 && res.status < 400) {
-      if (!res.location) throw new Error("Poster URL redirected without a target");
+      if (!res.location) throw new PosterImportError("Poster URL redirected without a target");
       try {
         current = parsePublicUrl(new URL(res.location, current).toString());
       } catch (err) {
@@ -171,15 +174,15 @@ export async function importPosterFromUrl(rawUrl: string): Promise<ImportedPoste
     break;
   }
 
-  if (!res) throw new Error("Poster URL redirected too many times");
+  if (!res) throw new PosterImportError("Poster URL redirected too many times");
   if (res.status < 200 || res.status >= 300 || !res.body) {
-    throw new Error("Could not download the poster");
+    throw new PosterImportError("Could not download the poster");
   }
 
   const body = res.body;
   const kind = sniffImageType(body);
   if (!kind) {
-    throw new Error(
+    throw new PosterImportError(
       "That URL is not a JPEG, PNG, WebP or AVIF image (it may be an HTML page rather than a direct image link)"
     );
   }
