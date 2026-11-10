@@ -617,6 +617,10 @@ export async function setFilmPoster(actor: Actor, filmId: number, url: string) {
   };
 }
 
+/** Bounds that keep one member (or a leaked MCP key) from growing a film without limit. */
+const MAX_TICKETS_PER_FILM = 50;
+const MAX_COMMENTS_PER_FILM = 1000;
+
 export async function addFilmTicket(
   actor: Actor,
   filmId: number,
@@ -627,6 +631,13 @@ export async function addFilmTicket(
   if (label.length > 80) throw new ServiceError("Ticket label may be at most 80 characters", 400);
   const rawUrl = normalise(input.imageUrl);
   if (!rawUrl) throw new ServiceError("imageUrl is required", 400);
+  const [{ n: ticketCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(filmTickets)
+    .where(eq(filmTickets.filmId, filmId));
+  if (Number(ticketCount) >= MAX_TICKETS_PER_FILM) {
+    throw new ServiceError(`A film can hold at most ${MAX_TICKETS_PER_FILM} tickets. Delete one first.`, 400);
+  }
   const imported = await importImage(rawUrl);
   const scanned = imported.body ? await decodeQrPayload(imported.body) : null;
   const supplied = normalise(input.qrPayload);
@@ -991,6 +1002,13 @@ export async function addComment(actor: Actor, filmId: number, body: string) {
   const text = body?.trim();
   if (!text) throw new ServiceError("Comment body cannot be empty", 400);
   if (text.length > 2000) throw new ServiceError("Comment is longer than 2000 characters", 400);
+  const [{ n: commentCount }] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(comments)
+    .where(eq(comments.filmId, filmId));
+  if (Number(commentCount) >= MAX_COMMENTS_PER_FILM) {
+    throw new ServiceError(`A film can hold at most ${MAX_COMMENTS_PER_FILM} comments`, 400);
+  }
 
   await db.insert(comments).values({ filmId, userId: actor.userId, body: text });
   publishLiveEvent({ topic: "comment", filmId });
