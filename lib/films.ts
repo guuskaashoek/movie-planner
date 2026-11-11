@@ -1053,13 +1053,22 @@ export async function rateFilm(
   // Admins may correct ratings at any time; everyone else must have attended a
   // screening that has already finished.
   if (!actor.isAdmin) {
+    // Same rule as the film page (canRate) and the ticket wallet: "going", or a
+    // vote for the winning poll option. "Interested" is not attending.
     const [attendance] = await db
       .select({ id: attendees.id })
       .from(attendees)
-      .where(and(eq(attendees.filmId, filmId), eq(attendees.userId, raterId)))
+      .where(and(eq(attendees.filmId, filmId), eq(attendees.userId, raterId), eq(attendees.type, "going")))
       .limit(1);
-    if (!attendance) throw new ServiceError("Only attendees can rate this film", 403);
-    if (!hasFilmEnded(film.date, film.endTime)) {
+    const poll = await getPollData(filmId, film.allowMultiVote, raterId);
+    const winner = poll?.options.find((option) => option.isWinning) ?? null;
+    if (!attendance && !winner?.votedByMe) {
+      throw new ServiceError("Only attendees can rate this film", 403);
+    }
+    // Poll films are scheduled by their winning option only (as on the film page).
+    const date = poll ? winner?.date ?? null : film.date;
+    const endTime = poll ? winner?.endTime ?? null : film.endTime;
+    if (!hasFilmEnded(date, endTime)) {
       throw new ServiceError("You can rate a film after the screening has ended", 400);
     }
   }
