@@ -109,16 +109,44 @@ export type SafeResponse = {
 /** Error with a size cap the caller can report. */
 export class TooLargeError extends UnsafeUrlError {}
 
+type GetOptions = {
+  cap: number;
+  /** Longest silence on the socket. */
+  timeoutMs?: number;
+  /** Longest the whole request may take, however steadily the bytes arrive. */
+  deadlineMs?: number;
+  headers?: Record<string, string>;
+};
+
 /** One GET (no redirect following) to a public address, body capped at `cap` bytes. */
-export function safeGet(
+export function safeGet(url: URL, options: GetOptions): Promise<SafeResponse> {
+  return getWithLookup(url, options, publicOnlyLookup);
+}
+
+/**
+ * The request behind safeGet with the socket lookup as an argument, so tests
+ * can reach a local server. App code calls safeGet, never this.
+ */
+export function getWithLookup(
   url: URL,
-  { cap, timeoutMs = 20000, headers = {} }: { cap: number; timeoutMs?: number; headers?: Record<string, string> }
+  { cap, timeoutMs = 20000, deadlineMs = 30000, headers = {} }: GetOptions,
+  lookup: LookupFunction
 ): Promise<SafeResponse> {
   const client = url.protocol === "https:" ? https : http;
-  return new Promise((resolve, reject) => {
+  return new Promise((resolveOuter, rejectOuter) => {
+    // `timeout` only measures silence: a server that sends one byte every few
+    // seconds would keep the request (and the MCP call waiting on it) open for
+    // days. The deadline ends it regardless.
+    const resolve = (value: SafeResponse) => { clearTimeout(deadline); resolveOuter(value); };
+    const reject = (err: unknown) => { clearTimeout(deadline); rejectOuter(err); };
+    const deadline = setTimeout(() => {
+      const err = new Error("request took too long");
+      req.destroy(err);
+      reject(err);
+    }, deadlineMs);
     const req = client.get(
       url,
-      { headers, lookup: publicOnlyLookup, timeout: timeoutMs, agent: false },
+      { headers, lookup, timeout: timeoutMs, agent: false },
       (res) => {
         const status = res.statusCode ?? 0;
         if (status >= 300 && status < 400) {
