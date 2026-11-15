@@ -302,8 +302,11 @@ export type ListFilmsOptions = {
 
 export async function listFilms(actor: Actor, options: ListFilmsOptions = {}) {
   const { scope = "all", query, owner } = options;
-  const limit = Math.min(Math.max(options.limit ?? 25, 1), 100);
-  const offset = Math.max(options.offset ?? 0, 0);
+  // Query strings can carry NaN/Infinity/fractions; SQLite refuses those (500).
+  const rawLimit = Number.isFinite(options.limit) ? Math.trunc(options.limit as number) : 25;
+  const rawOffset = Number.isFinite(options.offset) ? Math.trunc(options.offset as number) : 0;
+  const limit = Math.min(Math.max(rawLimit, 1), 100);
+  const offset = Math.min(Math.max(rawOffset, 0), 1_000_000);
 
   const conditions = [];
 
@@ -1242,4 +1245,18 @@ export async function getCalendarFeed(actor: Actor) {
     icsUrl: `${publicBaseUrl()}/api/calendar/feed.ics?userId=${settings.icsShareId}`,
     boardUrl: `${publicBaseUrl()}/board`,
   };
+}
+
+/**
+ * Replace the member's calendar share id. The feed URL is a bearer link (it
+ * ends up in calendar apps and sometimes in a shared calendar), so a member
+ * who leaked it needs a way to make the old one stop working.
+ */
+export async function rotateCalendarFeed(actor: Actor) {
+  await getCalendarFeed(actor);
+  await db
+    .update(boardSettings)
+    .set({ icsShareId: randomBytes(16).toString("hex") })
+    .where(eq(boardSettings.userId, actor.userId));
+  return getCalendarFeed(actor);
 }

@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
-export function CalendarSubscription({ icsUrl }: { icsUrl: string }) {
+export function CalendarSubscription({ icsUrl: initialUrl }: { icsUrl: string }) {
+  const [icsUrl, setIcsUrl] = useState(initialUrl);
+  const [resetting, setResetting] = useState(false);
+  const [resetNote, setResetNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const webcalUrl = icsUrl.replace(/^https?:\/\//, "webcal://");
@@ -16,6 +19,24 @@ export function CalendarSubscription({ icsUrl }: { icsUrl: string }) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopyError(true);
+    }
+  }
+
+  // The feed URL works without a login, so a leaked one must be replaceable.
+  async function handleReset() {
+    if (!window.confirm("Make a new calendar link? The old link stops working, so calendars that use it must be connected again.")) return;
+    setResetting(true);
+    setResetNote("");
+    try {
+      const res = await fetch("/api/calendar/rotate", { method: "POST" });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as { icsUrl: string };
+      setIcsUrl(data.icsUrl);
+      setResetNote("New link ready. Connect your calendar again.");
+    } catch {
+      setResetNote("Could not make a new link. Try again.");
+    } finally {
+      setResetting(false);
     }
   }
 
@@ -34,7 +55,8 @@ export function CalendarSubscription({ icsUrl }: { icsUrl: string }) {
       <p className="text-xs leading-relaxed text-zinc-500">Confirm the subscription in your calendar. Google opens in your browser.</p>
       <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={handleCopy} className="inline-flex min-h-11 items-center text-xs font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-4 hover:text-white">{copied ? "Link copied" : "Copy link for another calendar"}</button>
-        <span role="status" className="text-xs text-zinc-500">{copyError ? "Copy the URL below instead." : copied ? "Ready to paste." : ""}</span>
+        <button type="button" onClick={handleReset} disabled={resetting} className="inline-flex min-h-11 items-center text-xs font-medium text-zinc-400 underline decoration-zinc-700 underline-offset-4 hover:text-white disabled:opacity-50">{resetting ? "Making a new link…" : "Make a new link"}</button>
+        <span role="status" className="text-xs text-zinc-500">{resetNote || (copyError ? "Copy the URL below instead." : copied ? "Ready to paste." : "")}</span>
       </div>
       <details open={copyError || undefined} className="text-xs text-zinc-500">
         <summary className="w-fit cursor-pointer py-2">Calendar URL</summary>

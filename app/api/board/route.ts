@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const page = Number(searchParams.get("page") ?? "0");
-  const safePage = Number.isNaN(page) || page < 0 ? 0 : page;
+  const safePage = Number.isSafeInteger(page) && page >= 0 && page <= 10_000 ? page : 0;
 
   // Filter: Upcoming films (date >= today) or TBA (date is null)
   const today = new Date().toISOString().split("T")[0];

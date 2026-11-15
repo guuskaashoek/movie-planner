@@ -34,5 +34,6 @@ export const config = {
     "/api/films/:path*",
     "/api/admin/:path*",
     "/api/keys/:path*",
+    "/api/calendar/:path*",
   ],
 };
