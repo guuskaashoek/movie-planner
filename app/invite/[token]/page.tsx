@@ -11,7 +11,7 @@ import { PollVoter } from "@/app/components/PollVoter";
 import { getPollData } from "@/lib/poll";
 import { CommentsSection } from "@/app/components/CommentsSection";
 import { getComments } from "@/lib/comments";
-import { headers } from "next/headers";
+import { publicBaseUrl } from "@/lib/films";
 import type { Metadata } from "next";
 
 function formatDate(dateStr: string) {
@@ -39,10 +39,9 @@ export async function generateMetadata({
 
   if (!film) return {};
 
-  const headersList = await headers();
-  const host = headersList.get("host") ?? "localhost:3000";
-  const proto = headersList.get("x-forwarded-proto") ?? "https";
-  const baseUrl = `${proto}://${host}`;
+  // From config, not the request: X-Forwarded-Proto/Host arrive as the
+  // visitor sent them.
+  const baseUrl = publicBaseUrl();
 
   const formats = film.formats ? film.formats.split(",") : [];
   const description = [
